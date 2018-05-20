@@ -301,7 +301,9 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
 
         if (MoPub.canCollectPersonalInformation()) {
             setUserDataKeywords(mUserDataKeywords);
-            setLocation(mLocation);
+            if (MopubConfig.INCLUDE_LOCATION_IN_REQUEST) {
+                setLocation(mLocation);
+            }
         }
 
         setTimezone(DateAndTime.getTimeZoneOffsetString());

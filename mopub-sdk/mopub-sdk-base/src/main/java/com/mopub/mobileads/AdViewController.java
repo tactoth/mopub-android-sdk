@@ -17,6 +17,7 @@ import com.mopub.common.AdReport;
 import com.mopub.common.ClientMetadata;
 import com.mopub.common.Constants;
 import com.mopub.common.MoPub;
+import com.mopub.common.MopubConfig;
 import com.mopub.common.Preconditions;
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
@@ -243,7 +244,7 @@ public class AdViewController {
             return;
         }
 
-        if (!isNetworkAvailable()) {
+        if (MopubConfig.CHECK_NETWORK_AVAILABLE && !isNetworkAvailable()) {
             MoPubLog.d("Can't load an ad because there is no network connectivity.");
             scheduleRefreshTimerIfEnabled();
             return;

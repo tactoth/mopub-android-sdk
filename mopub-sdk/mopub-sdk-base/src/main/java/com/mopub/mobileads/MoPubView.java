@@ -16,6 +16,7 @@ import android.widget.FrameLayout;
 import com.mopub.common.AdFormat;
 import com.mopub.common.AdReport;
 import com.mopub.common.MoPub;
+import com.mopub.common.MopubConfig;
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.util.ManifestUtils;
 import com.mopub.common.util.Reflection;
@@ -57,7 +58,9 @@ public class MoPubView extends FrameLayout {
     public MoPubView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        ManifestUtils.checkWebViewActivitiesDeclared(context);
+        if (MopubConfig.CHECK_ACTIVITY_DECLARED) {
+            ManifestUtils.checkWebViewActivitiesDeclared(context);
+        }
 
         mContext = context;
         mScreenVisibility = getVisibility();

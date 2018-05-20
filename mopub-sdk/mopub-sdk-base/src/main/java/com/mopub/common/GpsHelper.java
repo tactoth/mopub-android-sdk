@@ -2,7 +2,9 @@ package com.mopub.common;
 
 import android.content.Context;
 import android.os.AsyncTask;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Pair;
 
 import com.mopub.common.factories.MethodBuilderFactory;
 import com.mopub.common.logging.MoPubLog;
@@ -21,6 +23,10 @@ public class GpsHelper {
     private static String sPlayServicesUtilClassName = "com.google.android.gms.common.GooglePlayServicesUtil";
     private static String sAdvertisingIdClientClassName = "com.google.android.gms.ads.identifier.AdvertisingIdClient";
 
+    private static Boolean sIsPlayServicesAvailable = null;
+
+    private static Pair<Boolean, Class> sAdvertisingIdClientClassInfo = null;
+
     public static class AdvertisingInfo {
         public final String advertisingId;
         public final boolean limitAdTracking;
@@ -35,19 +41,44 @@ public class GpsHelper {
         void onFetchAdInfoCompleted();
     }
 
+    @NonNull
+    private static Pair<Boolean, Class> getAdvertisingIdClientClassInfo() {
+        if (sAdvertisingIdClientClassInfo == null) {
+            synchronized (GpsHelper.class) {
+                if (sAdvertisingIdClientClassInfo == null) {
+                    try {
+                        Class klass = Class.forName(sAdvertisingIdClientClassName);
+                        sAdvertisingIdClientClassInfo = Pair.create(true, klass);
+                    } catch (ClassNotFoundException e) {
+                        sAdvertisingIdClientClassInfo = Pair.create(false, null);
+                    }
+                }
+            }
+        }
+        return sAdvertisingIdClientClassInfo;
+    }
+
     public static boolean isPlayServicesAvailable(final Context context) {
-        try {
-            MethodBuilder methodBuilder = MethodBuilderFactory.create(null, "isGooglePlayServicesAvailable")
+        if (sIsPlayServicesAvailable == null) {
+            boolean isAvailable;
+            try {
+                MethodBuilder methodBuilder = MethodBuilderFactory.create(null, "isGooglePlayServicesAvailable")
                     .setStatic(Class.forName(sPlayServicesUtilClassName))
                     .addParam(Context.class, context);
 
-            Object result = methodBuilder.execute();
+                Object result = methodBuilder.execute();
+                isAvailable = (result != null && (Integer) result == GOOGLE_PLAY_SUCCESS_CODE);
+            } catch (Exception exception) {
+                isAvailable = false;
+            }
 
-            Integer intResult = (Integer) result;
-            return (intResult != null && (intResult == GOOGLE_PLAY_SUCCESS_CODE || intResult == SERVICE_VERSION_UPDATE_REQUIRED));
-        } catch (Exception exception) {
-            return false;
+            synchronized (GpsHelper.class) {
+                if (sIsPlayServicesAvailable == null) {
+                    sIsPlayServicesAvailable = isAvailable;
+                }
+            }
         }
+        return sIsPlayServicesAvailable;
     }
 
     static public boolean isLimitAdTrackingEnabled(Context context) {
@@ -87,7 +118,7 @@ public class GpsHelper {
         Object adInfo = null;
         try {
             MethodBuilder methodBuilder = MethodBuilderFactory.create(null, "getAdvertisingIdInfo")
-                    .setStatic(Class.forName(sAdvertisingIdClientClassName))
+                    .setStatic(getAdvertisingIdClientClassInfo().second)
                     .addParam(Context.class, context);
 
             adInfo = methodBuilder.execute();
@@ -103,7 +134,7 @@ public class GpsHelper {
     }
 
     static private void internalFetchAdvertisingInfoAsync(final Context context, final GpsHelperListener gpsHelperListener) {
-        if (!classFound(sAdvertisingIdClientClassName)) {
+        if (!getAdvertisingIdClientClassInfo().first) {
             if (gpsHelperListener != null) {
                 gpsHelperListener.onFetchAdInfoCompleted();
             }
@@ -139,7 +170,7 @@ public class GpsHelper {
                 }
 
                 MethodBuilder methodBuilder = MethodBuilderFactory.create(null, "getAdvertisingIdInfo")
-                        .setStatic(Class.forName(sAdvertisingIdClientClassName))
+                        .setStatic(getAdvertisingIdClientClassInfo().second)
                         .addParam(Context.class, context);
 
                 Object adInfo = methodBuilder.execute();

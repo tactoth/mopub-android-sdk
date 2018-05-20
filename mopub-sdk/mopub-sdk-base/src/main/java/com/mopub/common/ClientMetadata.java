@@ -19,9 +19,11 @@ import com.mopub.common.util.DeviceUtils;
 import com.mopub.common.util.Dips;
 
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
-import static android.Manifest.permission.ACCESS_NETWORK_STATE;
 import static android.content.pm.PackageManager.NameNotFoundException;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 /**
  * Singleton that caches Client objects so they will be available to background threads.
@@ -98,6 +100,12 @@ public class ClientMetadata {
     private String mAppName;
     private final Context mContext;
     private final ConnectivityManager mConnectivityManager;
+
+    // Lazy client values
+    private Point mDeviceDimensions = null;
+
+    private MoPubNetworkType mMopubNetworkType = null;
+    private long mmMopubNetworkTypeTs = 0;
 
     /**
      * Returns the singleton ClientMetadata object, using the context to obtain data if necessary.
@@ -233,13 +241,24 @@ public class ClientMetadata {
 
 
     public MoPubNetworkType getActiveNetworkType() {
-        int networkType = UNKNOWN_NETWORK;
-        if (DeviceUtils.isPermissionGranted(mContext, ACCESS_NETWORK_STATE)) {
-            NetworkInfo activeNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
-            networkType = activeNetworkInfo != null
-                    ? activeNetworkInfo.getType() : UNKNOWN_NETWORK;
+        if (mMopubNetworkType == null
+            || mMopubNetworkType == MoPubNetworkType.UNKNOWN
+            || mmMopubNetworkTypeTs + MILLISECONDS.convert(1, MINUTES) < System.currentTimeMillis()) {
+            int networkType = UNKNOWN_NETWORK;
+            try {
+                NetworkInfo activeNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
+                if (activeNetworkInfo != null) {
+                    networkType = activeNetworkInfo.getType();
+                }
+            } catch (Throwable ignored) {
+            }
+            MoPubNetworkType moPubNetworkType = MoPubNetworkType.fromAndroidNetworkType(networkType);
+            synchronized (this) {
+                mMopubNetworkType = moPubNetworkType;
+                mmMopubNetworkTypeTs = System.currentTimeMillis();
+            }
         }
-        return MoPubNetworkType.fromAndroidNetworkType(networkType);
+        return mMopubNetworkType;
     }
 
 
@@ -362,10 +381,21 @@ public class ClientMetadata {
      * @return Width and height of the device. This is 0 by 0 if there is no context.
      */
     public Point getDeviceDimensions() {
-        if (Preconditions.NoThrow.checkNotNull(mContext)) {
-            return DeviceUtils.getDeviceDimensions(mContext);
+        if (mDeviceDimensions == null) {
+            Point deviceDimension;
+            if (Preconditions.NoThrow.checkNotNull(mContext)) {
+                deviceDimension = DeviceUtils.getDeviceDimensions(mContext);
+            } else {
+                deviceDimension = new Point(0, 0);
+            }
+
+            synchronized (this) {
+                if (mDeviceDimensions == null) {
+                    mDeviceDimensions = deviceDimension;
+                }
+            }
         }
-        return new Point(0, 0);
+        return mDeviceDimensions;
     }
 
     /**

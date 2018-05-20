@@ -172,18 +172,7 @@ public class MoPubCustomEventNative extends CustomEventNative {
                 }
             }
             setPrivacyInformationIconClickThroughUrl(PRIVACY_INFORMATION_CLICKTHROUGH_URL);
-
-            preCacheImages(mContext, getAllImageUrls(), new ImageListener() {
-                @Override
-                public void onImagesCached() {
-                    mCustomEventNativeListener.onNativeAdLoaded(MoPubStaticNativeAd.this);
-                }
-
-                @Override
-                public void onImagesFailedToCache(final NativeErrorCode errorCode) {
-                    mCustomEventNativeListener.onNativeAdFailed(errorCode);
-                }
-            });
+            mCustomEventNativeListener.onNativeAdLoaded(this); // prefetch images is done in AdUnitManager
         }
 
         private boolean containsRequiredKeys(@NonNull final JSONObject jsonObject) {

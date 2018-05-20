@@ -103,7 +103,6 @@ public class TrackingRequest extends MoPubRequest<Void> {
             return;
         }
 
-        final RequestQueue requestQueue = Networking.getRequestQueue(context);
         for (final String url : urls) {
             if (TextUtils.isEmpty(url)) {
                 continue;
@@ -127,8 +126,8 @@ public class TrackingRequest extends MoPubRequest<Void> {
                 }
             };
             final TrackingRequest trackingRequest = new TrackingRequest(context, url,
-                    internalListener);
-            requestQueue.add(trackingRequest);
+                internalListener);
+            Networking.getRequestQueue(context).add(trackingRequest);
         }
     }
 

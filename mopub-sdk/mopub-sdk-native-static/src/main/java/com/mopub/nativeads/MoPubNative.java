@@ -6,6 +6,7 @@ import android.support.annotation.Nullable;
 
 import com.mopub.common.AdFormat;
 import com.mopub.common.Constants;
+import com.mopub.common.MopubConfig;
 import com.mopub.common.Preconditions;
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
@@ -80,7 +81,9 @@ public class MoPubNative {
         Preconditions.checkNotNull(adRendererRegistry, "AdRendererRegistry may not be null.");
         Preconditions.checkNotNull(moPubNativeNetworkListener, "MoPubNativeNetworkListener may not be null.");
 
-        ManifestUtils.checkNativeActivitiesDeclared(context);
+        if (MopubConfig.CHECK_ACTIVITY_DECLARED) {
+            ManifestUtils.checkNativeActivitiesDeclared(context);
+        }
 
         mContext = new WeakReference<Context>(context);
         mAdUnitId = adUnitId;
@@ -140,7 +143,7 @@ public class MoPubNative {
             return;
         }
 
-        if (!DeviceUtils.isNetworkAvailable(context)) {
+        if (MopubConfig.CHECK_NETWORK_AVAILABLE && !DeviceUtils.isNetworkAvailable(context)) {
             mMoPubNativeNetworkListener.onNativeFail(CONNECTION_ERROR);
             return;
         }
@@ -264,7 +267,7 @@ public class MoPubNative {
             NetworkResponse response = volleyError.networkResponse;
             if (response != null && response.statusCode >= 500 && response.statusCode < 600) {
                 mMoPubNativeNetworkListener.onNativeFail(SERVER_ERROR_RESPONSE_CODE);
-            } else if (response == null && !DeviceUtils.isNetworkAvailable(mContext.get())) {
+            } else if (response == null && MopubConfig.CHECK_NETWORK_AVAILABLE && !DeviceUtils.isNetworkAvailable(mContext.get())) {
                 MoPubLog.c(String.valueOf(MoPubErrorCode.NO_CONNECTION.toString()));
                 mMoPubNativeNetworkListener.onNativeFail(CONNECTION_ERROR);
             } else {
