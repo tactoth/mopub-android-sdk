@@ -15,8 +15,10 @@ import com.mopub.common.SdkInitializationListener;
 import com.mopub.common.SharedPreferencesHelper;
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
+import com.mopub.common.util.Expiration;
 
 import java.util.Calendar;
+import java.util.concurrent.TimeUnit;
 
 public class MoPubIdentifier {
 
@@ -33,6 +35,8 @@ public class MoPubIdentifier {
 
     @NonNull
     private AdvertisingId mAdInfo;
+
+    private final Expiration mAdInfoExpiration = new Expiration(5, TimeUnit.MINUTES);
 
     @NonNull
     private final Context mAppContext;
@@ -58,10 +62,13 @@ public class MoPubIdentifier {
 
         mAppContext = appContext;
         mIdChangeListener = idChangeListener;
-        mAdInfo = readIdFromStorage(mAppContext);
-        if (mAdInfo == null) {
-            mAdInfo = AdvertisingId.generateExpiredAdvertisingId();
+
+        AdvertisingId advertisingId = readIdFromStorage(mAppContext);
+        if (advertisingId == null) {
+            advertisingId = AdvertisingId.generateExpiredAdvertisingId();
         }
+
+        mAdInfo = advertisingId;
         refreshAdvertisingInfo();
     }
 
@@ -83,7 +90,10 @@ public class MoPubIdentifier {
             return;
         }
         mRefreshingAdvertisingInfo = true;
-        new RefreshAdvertisingInfoAsyncTask().execute();
+
+        if (mAdInfoExpiration.isExpired()) {
+            new RefreshAdvertisingInfoAsyncTask().execute();
+        }
     }
 
     void refreshAdvertisingInfoBackgroundThread() {
@@ -255,6 +265,7 @@ public class MoPubIdentifier {
         @Override
         protected Void doInBackground(final Void... voids) {
             refreshAdvertisingInfoBackgroundThread();
+            mAdInfoExpiration.refresh();
             mRefreshingAdvertisingInfo = false;
             return null;
         }

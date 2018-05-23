@@ -1,5 +1,6 @@
 package com.mopub.common;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
@@ -17,6 +18,7 @@ import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.privacy.MoPubIdentifier;
 import com.mopub.common.util.DeviceUtils;
 import com.mopub.common.util.Dips;
+import com.mopub.common.util.Expiration;
 
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -103,9 +105,8 @@ public class ClientMetadata {
 
     // Lazy client values
     private Point mDeviceDimensions = null;
-
     private MoPubNetworkType mMopubNetworkType = null;
-    private long mmMopubNetworkTypeTs = 0;
+    private Expiration mmMopubNetworkTypeExpiration = new Expiration(1, TimeUnit.MINUTES);
 
     /**
      * Returns the singleton ClientMetadata object, using the context to obtain data if necessary.
@@ -243,9 +244,10 @@ public class ClientMetadata {
     public MoPubNetworkType getActiveNetworkType() {
         if (mMopubNetworkType == null
             || mMopubNetworkType == MoPubNetworkType.UNKNOWN
-            || mmMopubNetworkTypeTs + MILLISECONDS.convert(1, MINUTES) < System.currentTimeMillis()) {
+            || mmMopubNetworkTypeExpiration.isExpired()) {
             int networkType = UNKNOWN_NETWORK;
             try {
+                @SuppressLint("MissingPermission")
                 NetworkInfo activeNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
                 if (activeNetworkInfo != null) {
                     networkType = activeNetworkInfo.getType();
@@ -255,7 +257,7 @@ public class ClientMetadata {
             MoPubNetworkType moPubNetworkType = MoPubNetworkType.fromAndroidNetworkType(networkType);
             synchronized (this) {
                 mMopubNetworkType = moPubNetworkType;
-                mmMopubNetworkTypeTs = System.currentTimeMillis();
+                mmMopubNetworkTypeExpiration.refresh();
             }
         }
         return mMopubNetworkType;
