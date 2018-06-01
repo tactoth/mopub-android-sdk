@@ -47,7 +47,7 @@ public class ManifestUtils {
             REQUIRED_WEB_VIEW_SDK_ACTIVITIES.add(mraidActivityClass);
             REQUIRED_WEB_VIEW_SDK_ACTIVITIES.add(rewardedMraidActivityClass);
         } catch (ClassNotFoundException e) {
-            MoPubLog.i("ManifestUtils running without interstitial module");
+            MoPubLog.e("ManifestUtils running without interstitial module", e);
         }
 
         REQUIRED_WEB_VIEW_SDK_ACTIVITIES.add(com.mopub.mobileads.MraidVideoPlayerActivity.class);
