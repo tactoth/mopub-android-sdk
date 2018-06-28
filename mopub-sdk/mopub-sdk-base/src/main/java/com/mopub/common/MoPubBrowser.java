@@ -1,13 +1,13 @@
 package com.mopub.common;
 
 import android.app.Activity;
-import android.graphics.Bitmap;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,7 +28,7 @@ import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static com.mopub.common.util.Drawables.BACKGROUND;
 import static com.mopub.common.util.Drawables.CLOSE;
-import static com.mopub.common.util.Drawables.REFRESH;
+import static com.mopub.common.util.Drawables.OPEN_IN_BROWSER;
 import static com.mopub.common.util.Drawables.UNLEFT_ARROW;
 import static com.mopub.common.util.Drawables.UNRIGHT_ARROW;
 
@@ -41,7 +41,7 @@ public class MoPubBrowser extends Activity {
     private WebView mWebView;
     private ImageButton mBackButton;
     private ImageButton mForwardButton;
-    private ImageButton mRefreshButton;
+    private ImageButton mNativeBrowserButton;
     private ImageButton mCloseButton;
 
     private boolean mProgressBarAvailable;
@@ -63,7 +63,7 @@ public class MoPubBrowser extends Activity {
 
     @NonNull
     public ImageButton getRefreshButton() {
-        return mRefreshButton;
+        return mNativeBrowserButton;
     }
 
     @NonNull
@@ -115,10 +115,14 @@ public class MoPubBrowser extends Activity {
         webSettings.setBuiltInZoomControls(true);
         webSettings.setUseWideViewPort(true);
 
-        mWebView.loadUrl(getIntent().getStringExtra(DESTINATION_URL_KEY));
+        mWebView.loadUrl(getRequestedUrl());
 
         // keep track of redirect count https://stackoverflow.com/a/16795181/282502
         mWebView.setWebViewClient(new BrowserWebViewClient(this));
+    }
+
+    private String getRequestedUrl() {
+        return getIntent().getStringExtra(DESTINATION_URL_KEY);
     }
 
     private void initializeButtons() {
@@ -140,10 +144,14 @@ public class MoPubBrowser extends Activity {
             }
         });
 
-        mRefreshButton.setBackgroundColor(Color.TRANSPARENT);
-        mRefreshButton.setOnClickListener(new View.OnClickListener() {
+        mNativeBrowserButton.setBackgroundColor(Color.TRANSPARENT);
+        mNativeBrowserButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                mWebView.reload();
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(getRequestedUrl())));
+                } catch (Throwable e) {
+                    MoPubLog.e("Cannot open in native browser", e);
+                }
             }
         });
 
@@ -227,12 +235,12 @@ public class MoPubBrowser extends Activity {
 
         mBackButton = getButton(UNLEFT_ARROW.createDrawable(this));
         mForwardButton = getButton(UNRIGHT_ARROW.createDrawable(this));
-        mRefreshButton = getButton(REFRESH.createDrawable(this));
+        mNativeBrowserButton = getButton(OPEN_IN_BROWSER.createDrawable(this));
         mCloseButton = getButton(CLOSE.createDrawable(this));
 
         innerLayout.addView(mBackButton);
         innerLayout.addView(mForwardButton);
-        innerLayout.addView(mRefreshButton);
+        innerLayout.addView(mNativeBrowserButton);
         innerLayout.addView(mCloseButton);
 
         mWebView = new BaseWebView(this);
