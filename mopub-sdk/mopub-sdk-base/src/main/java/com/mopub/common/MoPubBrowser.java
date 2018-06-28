@@ -1,11 +1,13 @@
 package com.mopub.common;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,6 +20,7 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 
+import com.mopub.common.logging.MoPubLog;
 import com.mopub.mobileads.BaseWebView;
 import com.mopub.mobileads.util.WebViews;
 
@@ -74,6 +77,9 @@ public class MoPubBrowser extends Activity {
 
         setResult(Activity.RESULT_OK);
 
+        // hide title bar
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+
         mProgressBarAvailable = getWindow().requestFeature(Window.FEATURE_PROGRESS);
         if (mProgressBarAvailable) {
             getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_VISIBILITY_ON);
@@ -84,6 +90,15 @@ public class MoPubBrowser extends Activity {
         initializeWebView();
         initializeButtons();
         enableCookies();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (mWebView.canGoBack()) {
+            mWebView.goBack();
+        } else {
+            super.onBackPressed();
+        }
     }
 
     private void initializeWebView() {
@@ -102,6 +117,7 @@ public class MoPubBrowser extends Activity {
 
         mWebView.loadUrl(getIntent().getStringExtra(DESTINATION_URL_KEY));
 
+        // keep track of redirect count https://stackoverflow.com/a/16795181/282502
         mWebView.setWebViewClient(new BrowserWebViewClient(this));
     }
 

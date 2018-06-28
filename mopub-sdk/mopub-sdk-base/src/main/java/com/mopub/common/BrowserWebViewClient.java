@@ -10,6 +10,7 @@ import android.webkit.WebViewClient;
 import com.mopub.common.logging.MoPubLog;
 
 import java.util.EnumSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.mopub.common.util.Drawables.LEFT_ARROW;
 import static com.mopub.common.util.Drawables.RIGHT_ARROW;
@@ -46,6 +47,7 @@ class BrowserWebViewClient extends WebViewClient {
             return false;
         }
 
+        final AtomicBoolean isResultActionInAppBrowser = new AtomicBoolean(false);
         UrlHandler urlHandler = new UrlHandler.Builder()
                 .withSupportedUrlActions(SUPPORTED_URL_ACTIONS)
                 .withoutMoPubBrowser()
@@ -54,7 +56,7 @@ class BrowserWebViewClient extends WebViewClient {
                     public void urlHandlingSucceeded(@NonNull String url,
                             @NonNull UrlAction urlAction) {
                         if (urlAction.equals(UrlAction.OPEN_IN_APP_BROWSER)) {
-                            mMoPubBrowser.getWebView().loadUrl(url);
+                            isResultActionInAppBrowser.set(true);
                         } else {
                             // UrlAction opened in external app, so close MoPubBrowser
                             mMoPubBrowser.finish();
@@ -69,9 +71,9 @@ class BrowserWebViewClient extends WebViewClient {
                 .build();
 
         return urlHandler.handleResolvedUrl(mMoPubBrowser.getApplicationContext(), url,
-                true, // = fromUserInteraction
-                null // = trackingUrls
-        );
+                true,
+                null)
+            && !isResultActionInAppBrowser.get();
     }
 
     @Override
