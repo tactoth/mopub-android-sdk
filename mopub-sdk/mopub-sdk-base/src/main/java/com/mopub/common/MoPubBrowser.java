@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -147,7 +148,10 @@ public class MoPubBrowser extends Activity {
                         request.setTitle(fileName);
 
                         // https://stackoverflow.com/a/33501835/282502
-                        request.addRequestHeader("cookie", CookieManager.getInstance().getCookie(url));
+                        String cookie = CookieManager.getInstance().getCookie(url);
+                        if (!TextUtils.isEmpty(cookie)) {
+                            request.addRequestHeader("cookie", cookie);
+                        }
                         request.addRequestHeader("User-Agent", userAgent);
 
                         downloadManager.enqueue(request);
