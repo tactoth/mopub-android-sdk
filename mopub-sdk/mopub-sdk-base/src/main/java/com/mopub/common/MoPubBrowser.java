@@ -18,9 +18,11 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 
 import com.mopub.common.logging.MoPubLog;
+import com.mopub.common.util.Dips;
 import com.mopub.mobileads.BaseWebView;
 import com.mopub.mobileads.util.WebViews;
 
@@ -45,6 +47,7 @@ public class MoPubBrowser extends Activity {
     private ImageButton mCloseButton;
 
     private boolean mProgressBarAvailable;
+    private ProgressBar mProgressBar;
 
     @NonNull
     public ImageButton getBackButton() {
@@ -191,6 +194,8 @@ public class MoPubBrowser extends Activity {
                 if (mProgressBarAvailable && Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                     setProgress(progress * 100);
                 }
+                mProgressBar.setVisibility(progress >= 99 ? View.GONE : View.VISIBLE);
+                mProgressBar.setProgress(progress);
             }
         });
 
@@ -248,6 +253,11 @@ public class MoPubBrowser extends Activity {
         layoutParams.addRule(RelativeLayout.ABOVE, INNER_LAYOUT_ID);
         mWebView.setLayoutParams(layoutParams);
         outerLayout.addView(mWebView);
+
+        // add a progress bar
+        mProgressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        mProgressBar.setMax(100);
+        outerLayout.addView(mProgressBar, new RelativeLayout.LayoutParams(MATCH_PARENT, Dips.dipsToIntPixels(2, this)));
 
         return moPubBrowserView;
     }
