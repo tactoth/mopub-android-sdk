@@ -279,8 +279,9 @@ public class UrlHandler {
 
         };
 
-        UrlResolutionTask.getResolvedUrl(destinationUrl, urlResolutionListener);
         mTaskPending = true;
+        // UrlResolutionTask.getResolvedUrl(destinationUrl, urlResolutionListener);
+        urlResolutionListener.onSuccess(destinationUrl); // by-pass redirection resolving
     }
 
     /**
