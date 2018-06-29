@@ -141,22 +141,27 @@ public class MoPubBrowser extends Activity {
                     if (downloadManager != null) {
                         String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
 
-                        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-                        request.setMimeType(mimetype);
-                        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
-                        request.setTitle(fileName);
+                        Uri uri = Uri.parse(url);
+                        String scheme = uri.getScheme();
 
-                        // https://stackoverflow.com/a/33501835/282502
-                        String cookie = CookieManager.getInstance().getCookie(url);
-                        if (!TextUtils.isEmpty(cookie)) {
-                            request.addRequestHeader("cookie", cookie);
+                        if ("http".equals(scheme) || "https".equals(scheme)) {
+                            DownloadManager.Request request = new DownloadManager.Request(uri);
+                            request.setMimeType(mimetype);
+                            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+                            request.setTitle(fileName);
+
+                            // https://stackoverflow.com/a/33501835/282502
+                            String cookie = CookieManager.getInstance().getCookie(url);
+                            if (!TextUtils.isEmpty(cookie)) {
+                                request.addRequestHeader("cookie", cookie);
+                            }
+                            request.addRequestHeader("User-Agent", userAgent);
+
+                            downloadManager.enqueue(request);
+
+                            Toast.makeText(MoPubBrowser.this, "Downloading file...", Toast.LENGTH_SHORT).show();
                         }
-                        request.addRequestHeader("User-Agent", userAgent);
-
-                        downloadManager.enqueue(request);
-
-                        Toast.makeText(MoPubBrowser.this, "Downloading file...", Toast.LENGTH_SHORT).show();
                     }
                 }
             }
