@@ -1,27 +1,19 @@
 package com.mopub.common;
 
-import android.Manifest;
 import android.app.Activity;
-import android.app.DownloadManager;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
 import android.webkit.DownloadListener;
-import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -29,7 +21,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
-import android.widget.Toast;
 
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.util.Dips;
@@ -135,35 +126,7 @@ public class MoPubBrowser extends Activity {
         mWebView.setDownloadListener(new DownloadListener() {
             @Override
             public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
-                if (ActivityCompat.checkSelfPermission(MoPubBrowser.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED) {
-                    DownloadManager downloadManager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-                    if (downloadManager != null) {
-                        String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
-
-                        Uri uri = Uri.parse(url);
-                        String scheme = uri.getScheme();
-
-                        if ("http".equals(scheme) || "https".equals(scheme)) {
-                            DownloadManager.Request request = new DownloadManager.Request(uri);
-                            request.setMimeType(mimetype);
-                            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
-                            request.setTitle(fileName);
-
-                            // https://stackoverflow.com/a/33501835/282502
-                            String cookie = CookieManager.getInstance().getCookie(url);
-                            if (!TextUtils.isEmpty(cookie)) {
-                                request.addRequestHeader("cookie", cookie);
-                            }
-                            request.addRequestHeader("User-Agent", userAgent);
-
-                            downloadManager.enqueue(request);
-
-                            Toast.makeText(MoPubBrowser.this, "Downloading file...", Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                }
+                browseNative(url);
             }
         });
     }
@@ -194,11 +157,7 @@ public class MoPubBrowser extends Activity {
         mNativeBrowserButton.setBackgroundColor(Color.TRANSPARENT);
         mNativeBrowserButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(getRequestedUrl())));
-                } catch (Throwable e) {
-                    MoPubLog.e("Cannot open in native browser", e);
-                }
+                browseNative(getRequestedUrl());
             }
         });
 
@@ -208,6 +167,14 @@ public class MoPubBrowser extends Activity {
                 MoPubBrowser.this.finish();
             }
         });
+    }
+
+    private void browseNative(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Throwable e) {
+            MoPubLog.e("Cannot view " + url, e);
+        }
     }
 
     private void enableCookies() {
