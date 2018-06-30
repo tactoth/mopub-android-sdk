@@ -31,6 +31,8 @@ class BrowserWebViewClient extends WebViewClient {
     @NonNull
     private MoPubBrowser mMoPubBrowser;
 
+    private boolean mWasPageLoadedOnce = false;
+
     public BrowserWebViewClient(@NonNull final MoPubBrowser moPubBrowser) {
         mMoPubBrowser = moPubBrowser;
     }
@@ -59,7 +61,9 @@ class BrowserWebViewClient extends WebViewClient {
                             isResultActionInAppBrowser.set(true);
                         } else {
                             // UrlAction opened in external app, so close MoPubBrowser
-                            mMoPubBrowser.finish();
+                            if (!mWasPageLoadedOnce) {
+                                mMoPubBrowser.finish();
+                            }
                         }
                     }
 
@@ -84,6 +88,7 @@ class BrowserWebViewClient extends WebViewClient {
     @Override
     public void onPageFinished(WebView view, String url) {
         super.onPageFinished(view, url);
+        mWasPageLoadedOnce = true;
 
         Drawable backImageDrawable = view.canGoBack()
                 ? LEFT_ARROW.createDrawable(mMoPubBrowser)
