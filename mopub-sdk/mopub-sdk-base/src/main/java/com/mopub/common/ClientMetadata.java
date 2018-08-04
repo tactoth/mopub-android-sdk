@@ -8,6 +8,8 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Point;
 import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.support.annotation.NonNull;
@@ -23,6 +25,7 @@ import com.mopub.common.util.Expiration;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
+import static android.Manifest.permission.ACCESS_NETWORK_STATE;
 import static android.content.pm.PackageManager.NameNotFoundException;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -31,17 +34,14 @@ import static java.util.concurrent.TimeUnit.MINUTES;
  * Singleton that caches Client objects so they will be available to background threads.
  */
 public class ClientMetadata {
-    // Network type constant defined after API 9:
-    private static final int TYPE_ETHERNET = 9;
 
     private static final String DEVICE_ORIENTATION_PORTRAIT = "p";
     private static final String DEVICE_ORIENTATION_LANDSCAPE = "l";
     private static final String DEVICE_ORIENTATION_SQUARE = "s";
     private static final String DEVICE_ORIENTATION_UNKNOWN = "u";
-    private static final int UNKNOWN_NETWORK = -1;
 
     private String mNetworkOperatorForUrl;
-    private final String mNetworkOperator;
+    private String mNetworkOperator;
     private String mSimOperator;
     private String mIsoCountryCode;
     private String mSimIsoCountryCode;
@@ -51,11 +51,17 @@ public class ClientMetadata {
     @NonNull
     private final MoPubIdentifier moPubIdentifier;
 
+    /**
+     * MoPubNetworkType - network connection type enumeration
+     */
     public enum MoPubNetworkType {
         UNKNOWN(0),
         ETHERNET(1),
         WIFI(2),
-        MOBILE(3);
+        MOBILE(3),
+        GG(4),      // connected to 2G network
+        GGG(5),     // connected to 3G network
+        GGGG(6);    // connected to 4G network
 
         private final int mId;
         MoPubNetworkType(int id) {
@@ -65,23 +71,6 @@ public class ClientMetadata {
         @Override
         public String toString() {
             return Integer.toString(mId);
-        }
-
-        private static MoPubNetworkType fromAndroidNetworkType(int type) {
-            switch(type) {
-                case TYPE_ETHERNET:
-                    return ETHERNET;
-                case ConnectivityManager.TYPE_WIFI:
-                    return WIFI;
-                case ConnectivityManager.TYPE_MOBILE:
-                case ConnectivityManager.TYPE_MOBILE_DUN:
-                case ConnectivityManager.TYPE_MOBILE_HIPRI:
-                case ConnectivityManager.TYPE_MOBILE_MMS:
-                case ConnectivityManager.TYPE_MOBILE_SUPL:
-                    return MOBILE;
-                default:
-                    return UNKNOWN;
-            }
         }
 
         public int getId() {
@@ -105,7 +94,9 @@ public class ClientMetadata {
 
     // Lazy client values
     private Point mDeviceDimensions = null;
-    private MoPubNetworkType mMopubNetworkType = null;
+
+    @NonNull
+    private MoPubNetworkType mMopubNetworkType = MoPubNetworkType.UNKNOWN;
     private Expiration mmMopubNetworkTypeExpiration = new Expiration(1, TimeUnit.MINUTES);
 
     /**
@@ -173,33 +164,34 @@ public class ClientMetadata {
 
         final TelephonyManager telephonyManager =
                 (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
-        mNetworkOperatorForUrl = telephonyManager.getNetworkOperator();
-        mNetworkOperator = telephonyManager.getNetworkOperator();
-        if (telephonyManager.getPhoneType() == TelephonyManager.PHONE_TYPE_CDMA &&
-                telephonyManager.getSimState() == TelephonyManager.SIM_STATE_READY) {
-            mNetworkOperatorForUrl = telephonyManager.getSimOperator();
-            mSimOperator = telephonyManager.getSimOperator();
-        }
-
-        if (MoPub.canCollectPersonalInformation()) {
-            mIsoCountryCode = telephonyManager.getNetworkCountryIso();
-            mSimIsoCountryCode = telephonyManager.getSimCountryIso();
-        } else {
-            mIsoCountryCode = "";
-            mSimIsoCountryCode = "";
-        }
-
-        try {
-            // Some Lenovo devices require READ_PHONE_STATE here.
-            mNetworkOperatorName = telephonyManager.getNetworkOperatorName();
-            if (telephonyManager.getSimState() == TelephonyManager.SIM_STATE_READY) {
-                mSimOperatorName = telephonyManager.getSimOperatorName();
+        if(telephonyManager!=null) {
+            mNetworkOperatorForUrl = telephonyManager.getNetworkOperator();
+            mNetworkOperator = telephonyManager.getNetworkOperator();
+            if (telephonyManager.getPhoneType() == TelephonyManager.PHONE_TYPE_CDMA &&
+                    telephonyManager.getSimState() == TelephonyManager.SIM_STATE_READY) {
+                mNetworkOperatorForUrl = telephonyManager.getSimOperator();
+                mSimOperator = telephonyManager.getSimOperator();
             }
-        } catch (SecurityException e) {
-            mNetworkOperatorName = null;
-            mSimOperatorName = null;
-        }
 
+            if (MoPub.canCollectPersonalInformation()) {
+                mIsoCountryCode = telephonyManager.getNetworkCountryIso();
+                mSimIsoCountryCode = telephonyManager.getSimCountryIso();
+            } else {
+                mIsoCountryCode = "";
+                mSimIsoCountryCode = "";
+            }
+
+            try {
+                // Some Lenovo devices require READ_PHONE_STATE here.
+                mNetworkOperatorName = telephonyManager.getNetworkOperatorName();
+                if (telephonyManager.getSimState() == TelephonyManager.SIM_STATE_READY) {
+                    mSimOperatorName = telephonyManager.getSimOperatorName();
+                }
+            } catch (SecurityException e) {
+                mNetworkOperatorName = null;
+                mSimOperatorName = null;
+            }
+        }
         moPubIdentifier = new MoPubIdentifier(mContext);
     }
 
@@ -240,29 +232,72 @@ public class ClientMetadata {
         return orientation;
     }
 
-
     public MoPubNetworkType getActiveNetworkType() {
-        if (mMopubNetworkType == null
-            || mMopubNetworkType == MoPubNetworkType.UNKNOWN
-            || mmMopubNetworkTypeExpiration.isExpired()) {
-            int networkType = UNKNOWN_NETWORK;
+        if (mMopubNetworkType == MoPubNetworkType.UNKNOWN || mmMopubNetworkTypeExpiration.isExpired()) {
+            // needs to get network type again
             try {
-                @SuppressLint("MissingPermission")
-                NetworkInfo activeNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
-                if (activeNetworkInfo != null) {
-                    networkType = activeNetworkInfo.getType();
-                }
-            } catch (Throwable ignored) {
-            }
-            MoPubNetworkType moPubNetworkType = MoPubNetworkType.fromAndroidNetworkType(networkType);
-            synchronized (this) {
-                mMopubNetworkType = moPubNetworkType;
-                mmMopubNetworkTypeExpiration.refresh();
+                mMopubNetworkType = getMoPubNetworkType_();
+            } catch (Throwable e) {
+                // pass
             }
         }
         return mMopubNetworkType;
+
     }
 
+    @SuppressLint("MissingPermission")
+    private MoPubNetworkType getMoPubNetworkType_() {
+        NetworkInfo activeNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
+        if (activeNetworkInfo == null || !activeNetworkInfo.isConnected()) {
+            return MoPubNetworkType.UNKNOWN;
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            if (activeNetworkInfo.getType() == ConnectivityManager.TYPE_ETHERNET) {
+                return MoPubNetworkType.ETHERNET;
+            }
+        } else {
+            Network[] networks = mConnectivityManager.getAllNetworks();
+            for (Network network : networks) {
+                NetworkCapabilities capabilities = mConnectivityManager.getNetworkCapabilities(network);
+                if (capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))
+                    return MoPubNetworkType.ETHERNET;
+            }
+        }
+
+        NetworkInfo networkInfo = mConnectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+        if (networkInfo != null && networkInfo.isConnected()) {
+            return MoPubNetworkType.WIFI;
+        }
+
+        networkInfo = mConnectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+        if (networkInfo != null && networkInfo.isConnected()) {
+            int netType = networkInfo.getSubtype();
+            switch (netType) {
+                case TelephonyManager.NETWORK_TYPE_GPRS:
+                case TelephonyManager.NETWORK_TYPE_EDGE:
+                case TelephonyManager.NETWORK_TYPE_CDMA:
+                case TelephonyManager.NETWORK_TYPE_1xRTT:
+                case TelephonyManager.NETWORK_TYPE_IDEN:
+                    return MoPubNetworkType.GG; // 2G
+                case TelephonyManager.NETWORK_TYPE_UMTS:
+                case TelephonyManager.NETWORK_TYPE_EVDO_0:
+                case TelephonyManager.NETWORK_TYPE_EVDO_A:
+                case TelephonyManager.NETWORK_TYPE_HSDPA:
+                case TelephonyManager.NETWORK_TYPE_HSUPA:
+                case TelephonyManager.NETWORK_TYPE_HSPA:
+                case TelephonyManager.NETWORK_TYPE_EVDO_B:
+                case TelephonyManager.NETWORK_TYPE_EHRPD:
+                    return MoPubNetworkType.GGG; // 3G
+                case TelephonyManager.NETWORK_TYPE_HSPAP:
+                case TelephonyManager.NETWORK_TYPE_LTE:
+                    return MoPubNetworkType.GGGG; // 4G
+                default:
+                    return MoPubNetworkType.MOBILE;
+            }
+        }
+        return MoPubNetworkType.UNKNOWN;
+    }
 
     /**
      * Get the logical density of the display as in {@link android.util.DisplayMetrics#density}
