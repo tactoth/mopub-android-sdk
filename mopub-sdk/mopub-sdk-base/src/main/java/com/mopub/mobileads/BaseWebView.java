@@ -73,14 +73,18 @@ public class BaseWebView extends WebView {
     /*
      * Intended to be used with dummy WebViews to precache WebView javascript and assets.
      */
+    public void enableJavascriptCaching() {
+        enableJavascriptCaching(this);
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
-    protected void enableJavascriptCaching() {
-        getSettings().setJavaScriptEnabled(true);
-        getSettings().setDomStorageEnabled(true);
-        getSettings().setAppCacheEnabled(true);
+    public static void enableJavascriptCaching(WebView baseWebView) {
+        baseWebView.getSettings().setJavaScriptEnabled(true);
+        baseWebView.getSettings().setDomStorageEnabled(true);
+        baseWebView.getSettings().setAppCacheEnabled(true);
         // Required for the Application Caches API to be enabled
         // See: http://developer.android.com/reference/android/webkit/WebSettings.html#setAppCachePath(java.lang.String)
-        getSettings().setAppCachePath(getContext().getCacheDir().getAbsolutePath());
+        baseWebView.getSettings().setAppCachePath(baseWebView.getContext().getCacheDir().getAbsolutePath());
     }
 
     /*

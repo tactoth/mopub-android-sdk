@@ -106,9 +106,8 @@ public class MoPubBrowser extends Activity {
     }
 
     private void initializeWebView() {
+        BaseWebView.enableJavascriptCaching(mWebView);
         WebSettings webSettings = mWebView.getSettings();
-
-        webSettings.setJavaScriptEnabled(true);
 
         /*
          * Pinch to zoom is apparently not enabled by default on all devices, so
@@ -259,11 +258,11 @@ public class MoPubBrowser extends Activity {
         innerLayout.addView(mNativeBrowserButton);
         innerLayout.addView(mCloseButton);
 
-        mWebView = new BaseWebView(this);
+        this.mWebView = new BaseWebView(this);
         RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT);
         layoutParams.addRule(RelativeLayout.ABOVE, INNER_LAYOUT_ID);
-        mWebView.setLayoutParams(layoutParams);
-        outerLayout.addView(mWebView);
+        this.mWebView.setLayoutParams(layoutParams);
+        outerLayout.addView(this.mWebView);
 
         // add a progress bar
         mProgressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
