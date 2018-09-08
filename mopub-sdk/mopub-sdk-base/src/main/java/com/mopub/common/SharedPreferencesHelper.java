@@ -12,9 +12,7 @@ public final class SharedPreferencesHelper {
     private SharedPreferencesHelper() {}
     
     public static SharedPreferences getSharedPreferences(@NonNull final Context context) {
-        Preconditions.checkNotNull(context);
-
-        return context.getSharedPreferences(DEFAULT_PREFERENCE_NAME, MODE_PRIVATE);
+        return getSharedPreferences(context, DEFAULT_PREFERENCE_NAME);
     }
 
     public static SharedPreferences getSharedPreferences(

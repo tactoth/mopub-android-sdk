@@ -45,6 +45,7 @@ class BrowserWebViewClient extends WebViewClient {
 
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
+        MoPubLog.d("MoPubBrowser.BrowserWebViewClient.shouldOverrideUrlLoading: " + url);
         if (TextUtils.isEmpty(url)) {
             return false;
         }

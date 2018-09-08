@@ -26,7 +26,7 @@ public class MoPubIdentifier {
         void onIdChanged(@NonNull final AdvertisingId oldId, @NonNull final AdvertisingId newId);
     }
 
-    private static final String PREF_AD_INFO_GROUP = "com.mopub.settings.identifier";
+    public static final String PREF_AD_INFO_GROUP = "com.mopub.settings.identifier";
     private static final String PREF_IFA_IDENTIFIER = "privacy.identifier.ifa";
     private static final String PREF_MOPUB_IDENTIFIER = "privacy.identifier.mopub";
     private static final String PREF_IDENTIFIER_TIME = "privacy.identifier.time";

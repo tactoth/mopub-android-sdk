@@ -14,9 +14,9 @@ import com.mopub.common.VisibleForTesting;
 
 import java.util.Locale;
 
-class PersonalInfoData implements ConsentData {
+public class PersonalInfoData implements ConsentData {
 
-    private static final String PERSONAL_INFO_DATA_SHARED_PREFS = "com.mopub.privacy";
+    public static final String PERSONAL_INFO_DATA_SHARED_PREFS = "com.mopub.privacy";
     private static final String PERSONAL_INFO_PREFIX = "info/";
     private static final String AD_UNIT_ID_SP_KEY = PERSONAL_INFO_PREFIX + "adunit";
     private static final String CONSENT_STATUS_SP_KEY = PERSONAL_INFO_PREFIX + "consent_status";
