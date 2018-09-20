@@ -51,11 +51,12 @@ public class NativeAd {
 
     @NonNull private final Context mContext;
     @NonNull private final BaseNativeAd mBaseNativeAd;
-    @NonNull private final MoPubAdRenderer mMoPubAdRenderer;
     @NonNull private final Set<String> mImpressionTrackers;
     @NonNull private final Set<String> mClickTrackers;
     @NonNull private final String mAdUnitId;
     @Nullable private MoPubNativeEventListener mMoPubNativeEventListener;
+
+    @NonNull private MoPubAdRenderer mMoPubAdRenderer;
 
     private boolean mRecordedImpression;
     private boolean mIsClicked;
@@ -93,6 +94,10 @@ public class NativeAd {
         });
 
         mMoPubAdRenderer = moPubAdRenderer;
+    }
+
+    public void setMoPubAdRenderer(@NonNull MoPubAdRenderer moPubAdRenderer) {
+        this.mMoPubAdRenderer = moPubAdRenderer;
     }
 
     @Override
