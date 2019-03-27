@@ -24,8 +24,9 @@ public class BaseWebView extends WebView {
         /*
          * Important: don't allow any WebView subclass to be instantiated using
          * an Activity context, as it will leak on Froyo devices and earlier.
+         * Update: Froyo is 2.2 and is not supported
          */
-        super(context.getApplicationContext());
+        super(context);
 
         enablePlugins(false);
         restrictDeviceContentAccess();
