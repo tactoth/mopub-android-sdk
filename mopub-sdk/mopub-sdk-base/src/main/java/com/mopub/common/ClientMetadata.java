@@ -25,10 +25,7 @@ import com.mopub.common.util.Expiration;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
-import static android.Manifest.permission.ACCESS_NETWORK_STATE;
 import static android.content.pm.PackageManager.NameNotFoundException;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.MINUTES;
 
 /**
  * Singleton that caches Client objects so they will be available to background threads.
@@ -97,7 +94,7 @@ public class ClientMetadata {
 
     @NonNull
     private MoPubNetworkType mMopubNetworkType = MoPubNetworkType.UNKNOWN;
-    private Expiration mmMopubNetworkTypeExpiration = new Expiration(1, TimeUnit.MINUTES);
+    private Expiration mMopubNetworkTypeExpiration = new Expiration(3, TimeUnit.MINUTES);
 
     /**
      * Returns the singleton ClientMetadata object, using the context to obtain data if necessary.
@@ -233,16 +230,16 @@ public class ClientMetadata {
     }
 
     public MoPubNetworkType getActiveNetworkType() {
-        if (mMopubNetworkType == MoPubNetworkType.UNKNOWN || mmMopubNetworkTypeExpiration.isExpired()) {
+        if (mMopubNetworkType == MoPubNetworkType.UNKNOWN || mMopubNetworkTypeExpiration.isExpired()) {
             // needs to get network type again
             try {
                 mMopubNetworkType = getMoPubNetworkType_();
             } catch (Throwable e) {
                 // pass
             }
+            mMopubNetworkTypeExpiration.refresh();
         }
         return mMopubNetworkType;
-
     }
 
     @SuppressLint("MissingPermission")
