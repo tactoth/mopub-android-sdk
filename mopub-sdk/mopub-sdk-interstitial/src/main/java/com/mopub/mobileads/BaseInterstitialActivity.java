@@ -1,9 +1,14 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -24,6 +29,23 @@ abstract class BaseInterstitialActivity extends Activity {
     public abstract View getAdView();
 
     @Override
+    protected void onResume() {
+        super.onResume();
+
+        int flags = View.SYSTEM_UI_FLAG_LOW_PROFILE
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            flags |= View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        }
+
+        mCloseableLayout.setSystemUiVisibility(flags);
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
@@ -37,6 +59,8 @@ abstract class BaseInterstitialActivity extends Activity {
         View adView = getAdView();
 
         mCloseableLayout = new CloseableLayout(this);
+        final int blackColor = getResources().getColor(android.R.color.black);
+        mCloseableLayout.setBackgroundColor(blackColor);
         mCloseableLayout.setOnCloseListener(new OnCloseListener() {
             @Override
             public void onClose() {
@@ -66,6 +90,11 @@ abstract class BaseInterstitialActivity extends Activity {
         return mBroadcastIdentifier;
     }
 
+    @Nullable
+    String getResponseString() {
+        return getResponseString(mAdReport);
+    }
+
     protected void showInterstitialCloseButton() {
         if (mCloseableLayout != null) {
             mCloseableLayout.setCloseVisible(true);
@@ -92,5 +121,10 @@ abstract class BaseInterstitialActivity extends Activity {
         } catch (ClassCastException e) {
             return null;
         }
+    }
+
+    @Nullable
+    static String getResponseString(AdReport adReport) {
+        return adReport != null ? adReport.getResponseString() : null;
     }
 }

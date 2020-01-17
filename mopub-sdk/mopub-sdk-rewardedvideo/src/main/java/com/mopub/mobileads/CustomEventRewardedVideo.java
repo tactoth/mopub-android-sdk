@@ -1,6 +1,10 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 /**
  * Extend this class to mediate 3rd party rewarded videos.

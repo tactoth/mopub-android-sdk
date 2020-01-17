@@ -1,6 +1,10 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 /**
  * An object that represents placed ads in a {@link com.mopub.nativeads.MoPubStreamAdPlacer}

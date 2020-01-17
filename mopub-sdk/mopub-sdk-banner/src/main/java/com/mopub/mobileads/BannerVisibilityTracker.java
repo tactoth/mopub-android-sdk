@@ -1,11 +1,15 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Handler;
 import android.os.SystemClock;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.view.View;
 import android.view.ViewTreeObserver;
 
@@ -18,6 +22,7 @@ import com.mopub.common.util.Views;
 import java.lang.ref.WeakReference;
 
 import static android.view.ViewTreeObserver.OnPreDrawListener;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * Tracks banner views to determine when they become visible, where visibility is determined by
@@ -114,13 +119,13 @@ class BannerVisibilityTracker {
 
         final View rootView = Views.getTopmostView(context, view);
         if (rootView == null) {
-            MoPubLog.d("Unable to set Visibility Tracker due to no available root view.");
+            MoPubLog.log(CUSTOM, "Unable to set Visibility Tracker due to no available root view.");
             return;
         }
 
         final ViewTreeObserver viewTreeObserver = rootView.getViewTreeObserver();
         if (!viewTreeObserver.isAlive()) {
-            MoPubLog.w("Visibility Tracker was unable to track views because the"
+            MoPubLog.log(CUSTOM, "Visibility Tracker was unable to track views because the"
                     + " root view tree observer was not alive");
             return;
         }

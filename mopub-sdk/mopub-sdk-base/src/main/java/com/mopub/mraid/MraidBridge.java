@@ -1,44 +1,55 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mraid;
 
-import android.content.ActivityNotFoundException;
+import android.annotation.TargetApi;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
 import android.webkit.ConsoleMessage;
 import android.webkit.JsResult;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+
 import com.mopub.common.AdReport;
 import com.mopub.common.CloseableLayout.ClosePosition;
 import com.mopub.common.Constants;
+import com.mopub.common.Preconditions;
+import com.mopub.common.VisibilityTracker;
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.mobileads.BaseWebView;
+import com.mopub.mobileads.MoPubErrorCode;
 import com.mopub.mobileads.ViewGestureDetector;
-import com.mopub.mobileads.ViewGestureDetector.UserClickListener;
-import com.mopub.mraid.MraidBridge.MraidWebView.OnVisibilityChangedListener;
-import com.mopub.mraid.MraidNativeCommandHandler.MraidCommandFailureListener;
 import com.mopub.network.Networking;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
+import java.net.URLEncoder;
+import java.util.List;
 import java.util.Map;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
+import static com.mopub.mobileads.MoPubErrorCode.RENDER_PROCESS_GONE_UNSPECIFIED;
+import static com.mopub.mobileads.MoPubErrorCode.RENDER_PROCESS_GONE_WITH_CRASH;
+import static com.mopub.network.MoPubRequestUtils.getQueryParamMap;
 
 public class MraidBridge {
     private final AdReport mAdReport;
@@ -47,6 +58,8 @@ public class MraidBridge {
         void onPageLoaded();
 
         void onPageFailedToLoad();
+
+        void onRenderProcessGone(@NonNull final MoPubErrorCode errorCode);
 
         void onVisibilityChanged(boolean isVisible);
 
@@ -72,6 +85,8 @@ public class MraidBridge {
         void onPlayVideo(URI uri);
     }
 
+    static final String MRAID_OPEN = "mraid://open?url=";
+
     @NonNull private final PlacementType mPlacementType;
 
     @NonNull private final MraidNativeCommandHandler mMraidNativeCommandHandler;
@@ -80,7 +95,7 @@ public class MraidBridge {
 
     @Nullable private MraidWebView mMraidWebView;
 
-    private boolean mIsClicked;
+    @Nullable private ViewGestureDetector mGestureDetector;
 
     private boolean mHasLoaded;
 
@@ -113,7 +128,7 @@ public class MraidBridge {
         mMraidWebView.setScrollContainer(false);
         mMraidWebView.setVerticalScrollBarEnabled(false);
         mMraidWebView.setHorizontalScrollBarEnabled(false);
-        mMraidWebView.setBackgroundColor(Color.BLACK);
+        mMraidWebView.setBackgroundColor(Color.TRANSPARENT);
 
         mMraidWebView.setWebViewClient(mMraidWebViewClient);
 
@@ -141,29 +156,13 @@ public class MraidBridge {
             }
         });
 
-        final ViewGestureDetector gestureDetector = new ViewGestureDetector(
+        mGestureDetector = new ViewGestureDetector(
                 mMraidWebView.getContext(), mMraidWebView, mAdReport);
-        gestureDetector.setUserClickListener(new UserClickListener() {
-            @Override
-            public void onUserClick() {
-                mIsClicked = true;
-            }
-
-            @Override
-            public void onResetUserClick() {
-                mIsClicked = false;
-            }
-
-            @Override
-            public boolean wasClicked() {
-                return mIsClicked;
-            }
-        });
 
         mMraidWebView.setOnTouchListener(new OnTouchListener() {
             @Override
             public boolean onTouch(final View v, final MotionEvent event) {
-                gestureDetector.sendTouchEvent(event);
+                mGestureDetector.onTouchEvent(event);
 
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
@@ -177,7 +176,7 @@ public class MraidBridge {
             }
         });
 
-        mMraidWebView.setVisibilityChangedListener(new OnVisibilityChangedListener() {
+        mMraidWebView.setVisibilityChangedListener(new MraidWebView.OnVisibilityChangedListener() {
             @Override
             public void onVisibilityChanged(final boolean isVisible) {
                 if (mMraidBridgeListener != null) {
@@ -188,12 +187,15 @@ public class MraidBridge {
     }
 
     void detach() {
-        mMraidWebView = null;
+        if (mMraidWebView != null) {
+            mMraidWebView.destroy();
+            mMraidWebView = null;
+        }
     }
 
     public void setContentHtml(@NonNull String htmlData) {
         if (mMraidWebView == null) {
-            MoPubLog.d("MRAID bridge called setContentHtml before WebView was attached");
+            MoPubLog.log(CUSTOM, "MRAID bridge called setContentHtml before WebView was attached");
             return;
         }
 
@@ -204,7 +206,7 @@ public class MraidBridge {
 
     public void setContentUrl(String url) {
         if (mMraidWebView == null) {
-            MoPubLog.d("MRAID bridge called setContentHtml while WebView was not attached");
+            MoPubLog.log(CUSTOM, "MRAID bridge called setContentHtml while WebView was not attached");
             return;
         }
 
@@ -214,11 +216,11 @@ public class MraidBridge {
 
     void injectJavaScript(@NonNull String javascript) {
         if (mMraidWebView == null) {
-            MoPubLog.d("Attempted to inject Javascript into MRAID WebView while was not "
+            MoPubLog.log(CUSTOM, "Attempted to inject Javascript into MRAID WebView while was not "
                     + "attached:\n\t" + javascript);
             return;
         }
-        MoPubLog.d("Injecting Javascript into MRAID WebView:\n\t" + javascript);
+        MoPubLog.log(CUSTOM, "Injecting Javascript into MRAID WebView:\n\t" + javascript);
         mMraidWebView.loadUrl("javascript:" + javascript);
     }
 
@@ -234,17 +236,40 @@ public class MraidBridge {
     }
 
     public static class MraidWebView extends BaseWebView {
+
+        private static final int DEFAULT_MIN_VISIBLE_PX = 1;
+
         public interface OnVisibilityChangedListener {
             void onVisibilityChanged(boolean isVisible);
         }
 
         @Nullable private OnVisibilityChangedListener mOnVisibilityChangedListener;
+        @Nullable private VisibilityTracker mVisibilityTracker;
 
-        private boolean mIsVisible;
+        private boolean mMraidViewable;
 
         public MraidWebView(Context context) {
             super(context);
-            mIsVisible = getVisibility() == View.VISIBLE;
+
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                // Android 22 and lower has a bug where onVisibilityChanged is not called all
+                // the time when views are attached.
+                mMraidViewable = getVisibility() == View.VISIBLE;
+                return;
+            }
+
+            mVisibilityTracker = new VisibilityTracker(context);
+            final VisibilityTracker.VisibilityTrackerListener visibilityTrackerListener = new VisibilityTracker.VisibilityTrackerListener() {
+                @Override
+                public void onVisibilityChanged(@NonNull final List<View> visibleViews,
+                        @NonNull final List<View> invisibleViews) {
+                    Preconditions.checkNotNull(visibleViews);
+                    Preconditions.checkNotNull(invisibleViews);
+
+                    setMraidViewable(visibleViews.contains(MraidWebView.this));
+                }
+            };
+            mVisibilityTracker.setVisibilityTrackerListener(visibilityTrackerListener);
         }
 
         void setVisibilityChangedListener(@Nullable OnVisibilityChangedListener listener) {
@@ -254,17 +279,38 @@ public class MraidBridge {
         @Override
         protected void onVisibilityChanged(@NonNull View changedView, int visibility) {
             super.onVisibilityChanged(changedView, visibility);
-            boolean newIsVisible = (visibility == View.VISIBLE);
-            if (newIsVisible != mIsVisible) {
-                mIsVisible = newIsVisible;
-                if (mOnVisibilityChangedListener != null) {
-                    mOnVisibilityChangedListener.onVisibilityChanged(mIsVisible);
-                }
+            if (mVisibilityTracker == null) {
+                setMraidViewable(visibility == View.VISIBLE);
+                return;
+            }
+            if (visibility == View.VISIBLE) {
+                mVisibilityTracker.clear();
+                mVisibilityTracker.addView(changedView, this, 0, 0, DEFAULT_MIN_VISIBLE_PX);
+            } else {
+                mVisibilityTracker.removeView(this);
+                setMraidViewable(false);
             }
         }
 
-        public boolean isVisible() {
-            return mIsVisible;
+        private void setMraidViewable(final boolean viewable) {
+            if (mMraidViewable == viewable) {
+                return;
+            }
+            mMraidViewable = viewable;
+            if (mOnVisibilityChangedListener != null) {
+                mOnVisibilityChangedListener.onVisibilityChanged(viewable);
+            }
+        }
+
+        public boolean isMraidViewable() {
+            return mMraidViewable;
+        }
+
+        @Override
+        public void destroy() {
+            super.destroy();
+            mVisibilityTracker = null;
+            mOnVisibilityChangedListener = null;
         }
     }
 
@@ -282,21 +328,30 @@ public class MraidBridge {
         @Override
         public void onReceivedError(@NonNull WebView view, int errorCode,
                 @NonNull String description, @NonNull String failingUrl) {
-            MoPubLog.d("Error: " + description);
+            MoPubLog.log(CUSTOM, "Error: " + description);
             super.onReceivedError(view, errorCode, description, failingUrl);
+        }
+
+        @RequiresApi(Build.VERSION_CODES.O)
+        @Override
+        public boolean onRenderProcessGone(@Nullable final WebView view, @Nullable final RenderProcessGoneDetail detail) {
+            handleRenderProcessGone(detail);
+            return true;
         }
     };
 
     @VisibleForTesting
     boolean handleShouldOverrideUrl(@NonNull final String url) {
-        URI uri;
         try {
-            uri = new URI(url);
+            // This is purely for validating the URI before proceeding
+            final URI uri = new URI(url);
         } catch (URISyntaxException e) {
-            MoPubLog.d("Invalid MRAID URL: " + url);
+            MoPubLog.log(CUSTOM, "Invalid MRAID URL: " + url);
             fireErrorEvent(MraidJavascriptCommand.UNSPECIFIED, "Mraid command sent an invalid URL");
             return true;
         }
+
+        Uri uri = Uri.parse(url);
 
         // Note that scheme will be null when we are passed a relative Uri
         String scheme = uri.getScheme();
@@ -311,41 +366,29 @@ public class MraidBridge {
             return true;
         }
 
-        if ("mraid".equals(scheme)) {
-            Map<String, String> params = new HashMap<String, String>();
-            for (NameValuePair pair : URLEncodedUtils.parse(uri, "UTF-8")) {
-                params.put(pair.getName(), pair.getValue());
+        // This block converts all other URLs, including sms://, tel:// into MRAID URL. It checks for
+        // 'clicked' in order to avoid interfering with automatic browser redirects.
+        if (isClicked() && !"mraid".equals(scheme)) {
+            try {
+                uri = Uri.parse(MRAID_OPEN + URLEncoder.encode(url, "UTF-8"));
+                host = uri.getHost();
+                scheme = uri.getScheme();
+            } catch (UnsupportedEncodingException e) {
+                MoPubLog.log(CUSTOM, "Invalid MRAID URL encoding: " + url);
+                fireErrorEvent(MraidJavascriptCommand.OPEN, "Non-mraid URL is invalid");
+                return false;
             }
+        }
+
+        if ("mraid".equals(scheme)) {
             MraidJavascriptCommand command = MraidJavascriptCommand.fromJavascriptString(host);
             try {
-                runCommand(command, params);
-            } catch (MraidCommandException exception) {
+                runCommand(command, getQueryParamMap(uri));
+            } catch (MraidCommandException | IllegalArgumentException exception) {
                 fireErrorEvent(command, exception.getMessage());
             }
             fireNativeCommandCompleteEvent(command);
             return true;
-        }
-
-        // This block handles all other URLs, including sms://, tel://,
-        // clicking a hyperlink, or setting window.location directly in Javascript. It checks for
-        // clicked in order to avoid interfering with automatically browser redirects.
-        if (mIsClicked) {
-            Intent intent = new Intent();
-            intent.setAction(Intent.ACTION_VIEW);
-            intent.setData(Uri.parse(url));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-            try {
-                if (mMraidWebView == null) {
-                    MoPubLog.d("WebView was detached. Unable to load a URL");
-                    return true;
-                }
-                mMraidWebView.getContext().startActivity(intent);
-                return true;
-            } catch (ActivityNotFoundException e) {
-                MoPubLog.d("No activity found to handle this URL " + url);
-                return false;
-            }
         }
 
         return false;
@@ -368,10 +411,25 @@ public class MraidBridge {
     }
 
     @VisibleForTesting
+    @TargetApi(Build.VERSION_CODES.O)
+    void handleRenderProcessGone(@Nullable final RenderProcessGoneDetail detail) {
+        final MoPubErrorCode errorCode = (detail != null && detail.didCrash())
+                ? RENDER_PROCESS_GONE_WITH_CRASH
+                : RENDER_PROCESS_GONE_UNSPECIFIED;
+
+        MoPubLog.log(CUSTOM, errorCode);
+        detach();
+
+        if (mMraidBridgeListener != null) {
+            mMraidBridgeListener.onRenderProcessGone(errorCode);
+        }
+    }
+
+    @VisibleForTesting
     void runCommand(@NonNull final MraidJavascriptCommand command,
             @NonNull Map<String, String> params)
             throws MraidCommandException {
-        if (command.requiresClick(mPlacementType) && !mIsClicked) {
+        if (command.requiresClick(mPlacementType) && !isClicked()) {
             throw new MraidCommandException("Cannot execute this command unless the user clicks");
         }
 
@@ -424,20 +482,10 @@ public class MraidBridge {
                 uri = parseURI(params.get("uri"));
                 mMraidBridgeListener.onPlayVideo(uri);
                 break;
+                // STORE_PICTURE and CREATE_CALENDAR_EVENT are no longer supported
             case STORE_PICTURE:
-                uri = parseURI(params.get("uri"));
-                mMraidNativeCommandHandler.storePicture(mMraidWebView.getContext(), uri.toString(),
-                        new MraidCommandFailureListener() {
-                            @Override
-                            public void onFailure(final MraidCommandException exception) {
-                                fireErrorEvent(command, exception.getMessage());
-                            }
-                        });
-                break;
-
             case CREATE_CALENDAR_EVENT:
-                mMraidNativeCommandHandler.createCalendarEvent(mMraidWebView.getContext(), params);
-                break;
+                throw new MraidCommandException("Unsupported MRAID Javascript command");
             case UNSPECIFIED:
                 throw new MraidCommandException("Unspecified MRAID Javascript command");
         }
@@ -591,11 +639,13 @@ public class MraidBridge {
     }
 
     boolean isClicked() {
-        return mIsClicked;
+        final ViewGestureDetector gDetector = mGestureDetector;
+        return gDetector != null && gDetector.isClicked();
     }
 
-    boolean isVisible() {
-        return mMraidWebView != null && mMraidWebView.isVisible();
+    boolean isViewable() {
+        final MraidWebView mraidWebView = mMraidWebView;
+        return mraidWebView != null && mraidWebView.isMraidViewable();
     }
 
     boolean isAttached() {
@@ -613,6 +663,9 @@ public class MraidBridge {
 
     @VisibleForTesting
     void setClicked(boolean clicked) {
-        mIsClicked = clicked;
+        final ViewGestureDetector gDetector = mGestureDetector;
+        if (gDetector != null) {
+            gDetector.setClicked(clicked);
+        }
     }
 }

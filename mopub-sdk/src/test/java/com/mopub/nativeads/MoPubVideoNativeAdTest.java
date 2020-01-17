@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.app.Activity;
@@ -14,9 +18,8 @@ import android.view.View;
 import com.mopub.common.Constants;
 import com.mopub.common.DataKeys;
 import com.mopub.common.test.support.SdkTestRunner;
-import com.mopub.common.util.ResponseHeader;
+import com.mopub.common.VisibilityTracker;
 import com.mopub.mobileads.BaseVideoPlayerActivity;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.mobileads.MraidVideoPlayerActivity;
 import com.mopub.mobileads.VastManager;
 import com.mopub.mobileads.VastTracker;
@@ -49,7 +52,6 @@ import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowApplication;
 
 import java.util.ArrayList;
@@ -70,10 +72,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class MoPubVideoNativeAdTest {
 
     private MoPubVideoNativeAd subject;

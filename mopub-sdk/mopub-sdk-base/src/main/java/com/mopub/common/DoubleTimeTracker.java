@@ -1,9 +1,15 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.os.SystemClock;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.mopub.common.logging.MoPubLog;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * This class uses system time to track durations. It can be started and paused, but not reset.
@@ -36,7 +42,7 @@ public class DoubleTimeTracker {
 
     public synchronized void start() {
         if (state == State.STARTED) {
-            MoPubLog.v("DoubleTimeTracker already started.");
+            MoPubLog.log(CUSTOM, "DoubleTimeTracker already started.");
             return;
         }
 
@@ -46,7 +52,7 @@ public class DoubleTimeTracker {
 
     public synchronized void pause() {
         if (state == State.PAUSED) {
-            MoPubLog.v("DoubleTimeTracker already paused.");
+            MoPubLog.log(CUSTOM, "DoubleTimeTracker already paused.");
             return;
         }
 

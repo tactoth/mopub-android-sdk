@@ -1,7 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
 import android.content.Intent;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.mobileads.test.support.TestHtmlInterstitialWebViewFactory;
@@ -11,9 +16,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowApplication;
-import org.robolectric.shadows.support.v4.ShadowLocalBroadcastManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,8 +24,6 @@ import java.util.Map;
 import static com.mopub.common.DataKeys.BROADCAST_IDENTIFIER_KEY;
 import static com.mopub.common.DataKeys.CLICKTHROUGH_URL_KEY;
 import static com.mopub.common.DataKeys.HTML_RESPONSE_BODY_KEY;
-import static com.mopub.common.DataKeys.REDIRECT_URL_KEY;
-import static com.mopub.common.DataKeys.SCROLLABLE_KEY;
 import static com.mopub.common.IntentActions.ACTION_INTERSTITIAL_DISMISS;
 import static com.mopub.common.IntentActions.ACTION_INTERSTITIAL_SHOW;
 import static com.mopub.mobileads.CustomEventInterstitial.CustomEventInterstitialListener;
@@ -35,7 +36,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class HtmlInterstitialTest extends ResponseBodyInterstitialTest {
     private CustomEventInterstitialListener customEventInterstitialListener;
     private Activity context;
@@ -75,13 +75,10 @@ public class HtmlInterstitialTest extends ResponseBodyInterstitialTest {
         subject.loadInterstitial(context, customEventInterstitialListener, localExtras, serverExtras);
 
         assertThat(TestHtmlInterstitialWebViewFactory.getLatestListener()).isNull();
-        assertThat(TestHtmlInterstitialWebViewFactory.getLatestIsScrollable()).isFalse();
-        assertThat(TestHtmlInterstitialWebViewFactory.getLatestRedirectUrl()).isNull();
         assertThat(TestHtmlInterstitialWebViewFactory.getLatestClickthroughUrl()).isNull();
         verify(customEventInterstitialListener).onInterstitialFailed(NETWORK_INVALID_STATE);
         verify(htmlInterstitialWebView, never()).loadHtmlResponse(anyString());
     }
-
 
     @Test
     public void showInterstitial_withMinimumExtras_shouldStartMoPubActivityWithDefaults() throws Exception {
@@ -89,9 +86,6 @@ public class HtmlInterstitialTest extends ResponseBodyInterstitialTest {
         subject.showInterstitial();
 
         Intent nextStartedActivity = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(nextStartedActivity.getStringExtra(HTML_RESPONSE_BODY_KEY)).isEqualTo(expectedResponse);
-        assertThat(nextStartedActivity.getBooleanExtra(SCROLLABLE_KEY, false)).isFalse();
-        assertThat(nextStartedActivity.getStringExtra(REDIRECT_URL_KEY)).isNull();
         assertThat(nextStartedActivity.getStringExtra(CLICKTHROUGH_URL_KEY)).isNull();
         assertThat(nextStartedActivity.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0);
         assertThat(nextStartedActivity.getComponent().getClassName()).isEqualTo("com.mopub.mobileads.MoPubActivity");
@@ -99,17 +93,12 @@ public class HtmlInterstitialTest extends ResponseBodyInterstitialTest {
 
     @Test
     public void showInterstitial_shouldStartMoPubActivityWithAllExtras() throws Exception {
-        serverExtras.put(SCROLLABLE_KEY, "true");
-        serverExtras.put(REDIRECT_URL_KEY, "redirectUrl");
         serverExtras.put(CLICKTHROUGH_URL_KEY, "clickthroughUrl");
 
         subject.loadInterstitial(context, customEventInterstitialListener, localExtras, serverExtras);
         subject.showInterstitial();
 
         Intent nextStartedActivity = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(nextStartedActivity.getStringExtra(HTML_RESPONSE_BODY_KEY)).isEqualTo(expectedResponse);
-        assertThat(nextStartedActivity.getBooleanExtra(SCROLLABLE_KEY, false)).isTrue();
-        assertThat(nextStartedActivity.getStringExtra(REDIRECT_URL_KEY)).isEqualTo("redirectUrl");
         assertThat(nextStartedActivity.getStringExtra(CLICKTHROUGH_URL_KEY)).isEqualTo("clickthroughUrl");
         assertThat(nextStartedActivity.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0);
         assertThat(nextStartedActivity.getComponent().getClassName()).isEqualTo("com.mopub.mobileads.MoPubActivity");
@@ -120,12 +109,12 @@ public class HtmlInterstitialTest extends ResponseBodyInterstitialTest {
         subject.loadInterstitial(context, customEventInterstitialListener, localExtras, serverExtras);
 
         Intent intent = getIntentForActionAndIdentifier(ACTION_INTERSTITIAL_SHOW, broadcastIdentifier);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener).onInterstitialShown();
 
         intent = getIntentForActionAndIdentifier(ACTION_INTERSTITIAL_DISMISS, broadcastIdentifier);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener).onInterstitialDismissed();
     }
@@ -137,12 +126,12 @@ public class HtmlInterstitialTest extends ResponseBodyInterstitialTest {
 
         Intent intent;
         intent = new Intent(ACTION_INTERSTITIAL_SHOW);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener, never()).onInterstitialShown();
 
         intent = new Intent(ACTION_INTERSTITIAL_DISMISS);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener, never()).onInterstitialDismissed();
     }

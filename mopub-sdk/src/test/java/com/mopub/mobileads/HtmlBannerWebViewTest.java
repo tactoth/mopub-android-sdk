@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
@@ -12,7 +16,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
 import org.robolectric.Shadows;
-import org.robolectric.annotation.Config;
 
 import static com.mopub.mobileads.CustomEventBanner.CustomEventBannerListener;
 import static com.mopub.mobileads.MoPubErrorCode.NETWORK_INVALID_STATE;
@@ -22,36 +25,33 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class HtmlBannerWebViewTest {
     private HtmlBannerWebView subject;
     @Mock
     private AdReport mockAdReport;
     private CustomEventBannerListener customEventBannerListener;
     private String clickthroughUrl;
-    private String redirectUrl;
     private String dspCreativeId;
 
     @Before
-    public void setup() throws Exception {
+    public void setup() {
         subject = new HtmlBannerWebView(Robolectric.buildActivity(Activity.class).create().get(),
                 mockAdReport);
         customEventBannerListener = mock(CustomEventBannerListener.class);
         clickthroughUrl = "clickthroughUrl";
-        redirectUrl = "redirectUrl";
         dspCreativeId = "dspCreativeId";
     }
 
     @Test
-    public void init_shouldSetupWebViewClient() throws Exception {
-        subject.init(customEventBannerListener, false, clickthroughUrl, redirectUrl, dspCreativeId);
+    public void init_shouldSetupWebViewClient() {
+        subject.init(customEventBannerListener, clickthroughUrl, dspCreativeId);
         WebViewClient webViewClient = Shadows.shadowOf(subject).getWebViewClient();
         assertThat(webViewClient).isNotNull();
         assertThat(webViewClient).isInstanceOf(HtmlWebViewClient.class);
     }
 
     @Test
-    public void htmlBannerWebViewListener_shouldForwardCalls() throws Exception {
+    public void htmlBannerWebViewListener_shouldForwardCalls() {
         HtmlBannerWebView.HtmlBannerWebViewListener listenerSubject = new HtmlBannerWebView.HtmlBannerWebViewListener(customEventBannerListener);
 
         listenerSubject.onClicked();

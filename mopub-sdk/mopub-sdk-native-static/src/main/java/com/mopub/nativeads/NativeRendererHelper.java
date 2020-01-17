@@ -1,8 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -14,6 +18,8 @@ import com.mopub.common.util.Drawables;
 
 import java.util.Map;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
+
 /**
  * A set of helper methods for Native Ad Rendering
  */
@@ -21,7 +27,7 @@ public class NativeRendererHelper {
     public static void addTextView(@Nullable final TextView textView,
             @Nullable final String contents) {
         if (textView == null) {
-            MoPubLog.d("Attempted to add text (" + contents + ") to null TextView.");
+            MoPubLog.log(CUSTOM, "Attempted to add text (" + contents + ") to null TextView.");
             return;
         }
 
@@ -29,7 +35,7 @@ public class NativeRendererHelper {
         textView.setText(null);
 
         if (contents == null) {
-            MoPubLog.d("Attempted to set TextView contents to null.");
+            MoPubLog.log(CUSTOM, "Attempted to set TextView contents to null.");
         } else {
             textView.setText(contents);
         }
@@ -111,7 +117,7 @@ public class NativeRendererHelper {
             @NonNull final Map<String, Integer> extrasIds,
             @NonNull final Map<String, Object> extras) {
         if (mainView == null) {
-            MoPubLog.w("Attempted to bind extras on a null main view.");
+            MoPubLog.log(CUSTOM, "Attempted to bind extras on a null main view.");
             return;
         }
 
@@ -134,7 +140,7 @@ public class NativeRendererHelper {
                     NativeRendererHelper.addTextView((TextView) view, (String) content);
                 }
             } else {
-                MoPubLog.d("View bound to " + key + " should be an instance of TextView or ImageView.");
+                MoPubLog.log(CUSTOM, "View bound to " + key + " should be an instance of TextView or ImageView.");
             }
         }
     }

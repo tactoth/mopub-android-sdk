@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
@@ -5,8 +9,8 @@ import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.util.AttributeSet;
 import android.view.TextureView;
 import android.view.View;
@@ -21,6 +25,8 @@ import com.mopub.common.util.Drawables;
 import com.mopub.common.util.Utils;
 import com.mopub.mobileads.VastVideoProgressBarWidget;
 import com.mopub.mobileads.resource.DrawableConstants.GradientStrip;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 public class MediaLayout extends RelativeLayout {
     public enum Mode { IMAGE, PLAYING, LOADING, BUFFERING, PAUSED, FINISHED }
@@ -231,7 +237,7 @@ public class MediaLayout extends RelativeLayout {
 
         if (Math.abs(finalHeight - curHeight) >= 2
                 || Math.abs(finalWidth - curWidth) >= 2) {
-            MoPubLog.v(String.format("Resetting mediaLayout size to w: %d h: %d", finalWidth, finalHeight));
+            MoPubLog.log(CUSTOM, String.format("Resetting mediaLayout size to w: %d h: %d", finalWidth, finalHeight));
             getLayoutParams().width = finalWidth;
             getLayoutParams().height = finalHeight;
         }

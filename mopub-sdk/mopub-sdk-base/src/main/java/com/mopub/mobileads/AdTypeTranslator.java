@@ -1,10 +1,15 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.AdFormat;
 import com.mopub.common.AdType;
+import com.mopub.common.Preconditions;
 import com.mopub.common.util.ResponseHeader;
 
 import org.json.JSONObject;
@@ -18,10 +23,6 @@ public class AdTypeTranslator {
                 "com.mopub.mobileads.GooglePlayServicesBanner", false),
         GOOGLE_PLAY_SERVICES_INTERSTITIAL("admob_full_interstitial",
                 "com.mopub.mobileads.GooglePlayServicesInterstitial", false),
-        MILLENNIAL_BANNER("millennial_native_banner",
-                "com.mopub.mobileads.MillennialBanner", false),
-        MILLENNIAL_INTERSTITIAL("millennial_full_interstitial",
-                "com.mopub.mobileads.MillennialInterstitial", false),
 
         // MoPub-specific custom events.
         MRAID_BANNER("mraid_banner",
@@ -100,24 +101,29 @@ public class AdTypeTranslator {
             @NonNull String adType,
             @Nullable String fullAdType,
             @Nullable JSONObject headers) {
-        if (AdType.CUSTOM.equalsIgnoreCase(adType)) {
-            return extractHeader(headers, ResponseHeader.CUSTOM_EVENT_NAME);
-        } else if (AdType.STATIC_NATIVE.equalsIgnoreCase(adType)) {
-            return CustomEventType.MOPUB_NATIVE.toString();
-        } else if (AdType.VIDEO_NATIVE.equalsIgnoreCase(adType)) {
-            return CustomEventType.MOPUB_VIDEO_NATIVE.toString();
-        } else if (AdType.REWARDED_VIDEO.equalsIgnoreCase(adType)) {
-            return CustomEventType.MOPUB_REWARDED_VIDEO.toString();
-        } else if (AdType.REWARDED_PLAYABLE.equalsIgnoreCase(adType)) {
-            return CustomEventType.MOPUB_REWARDED_PLAYABLE.toString();
-        } else if (AdType.HTML.equalsIgnoreCase(adType) || AdType.MRAID.equalsIgnoreCase(adType)) {
-            return (AdFormat.INTERSTITIAL.equals(adFormat)
-                    ? CustomEventType.fromString(adType + INTERSTITIAL_SUFFIX)
-                    : CustomEventType.fromString(adType + BANNER_SUFFIX)).toString();
-        } else if (AdType.INTERSTITIAL.equalsIgnoreCase(adType)) {
-            return CustomEventType.fromString(fullAdType + INTERSTITIAL_SUFFIX).toString();
-        } else {
-            return CustomEventType.fromString(adType + BANNER_SUFFIX).toString();
+        Preconditions.checkNotNull(adFormat);
+        Preconditions.checkNotNull(adType);
+
+        switch (adType.toLowerCase()) {
+            case AdType.CUSTOM:
+                return extractHeader(headers, ResponseHeader.CUSTOM_EVENT_NAME);
+            case AdType.STATIC_NATIVE:
+                return CustomEventType.MOPUB_NATIVE.toString();
+            case AdType.VIDEO_NATIVE:
+                return CustomEventType.MOPUB_VIDEO_NATIVE.toString();
+            case AdType.REWARDED_VIDEO:
+                return CustomEventType.MOPUB_REWARDED_VIDEO.toString();
+            case AdType.REWARDED_PLAYABLE:
+                return CustomEventType.MOPUB_REWARDED_PLAYABLE.toString();
+            case AdType.HTML:
+            case AdType.MRAID:
+                return (AdFormat.INTERSTITIAL.equals(adFormat)
+                        ? CustomEventType.fromString(adType + INTERSTITIAL_SUFFIX)
+                        : CustomEventType.fromString(adType + BANNER_SUFFIX)).toString();
+            case AdType.INTERSTITIAL:
+                return CustomEventType.fromString(fullAdType + INTERSTITIAL_SUFFIX).toString();
+            default:
+                return CustomEventType.fromString(adType + BANNER_SUFFIX).toString();
         }
     }
 }

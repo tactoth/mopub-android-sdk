@@ -1,8 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.content.Context;
 import android.content.res.Configuration;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
@@ -13,6 +17,8 @@ import com.mopub.common.util.Dips;
 import com.mopub.common.util.Utils;
 import com.mopub.mobileads.resource.CtaButtonDrawable;
 import com.mopub.mobileads.resource.DrawableConstants;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 public class VastVideoCtaButtonWidget extends ImageView {
     @NonNull private CtaButtonDrawable mCtaButtonDrawable;
@@ -117,15 +123,15 @@ public class VastVideoCtaButtonWidget extends ImageView {
                 setLayoutParams(mPortraitLayoutParams);
                 break;
             case Configuration.ORIENTATION_UNDEFINED:
-                MoPubLog.d("Screen orientation undefined: CTA button widget defaulting to portrait layout");
+                MoPubLog.log(CUSTOM, "Screen orientation undefined: CTA button widget defaulting to portrait layout");
                 setLayoutParams(mPortraitLayoutParams);
                 break;
             case Configuration.ORIENTATION_SQUARE:
-                MoPubLog.d("Screen orientation is deprecated ORIENTATION_SQUARE: CTA button widget defaulting to portrait layout");
+                MoPubLog.log(CUSTOM, "Screen orientation is deprecated ORIENTATION_SQUARE: CTA button widget defaulting to portrait layout");
                 setLayoutParams(mPortraitLayoutParams);
                 break;
             default:
-                MoPubLog.d("Unrecognized screen orientation: CTA button widget defaulting to portrait layout");
+                MoPubLog.log(CUSTOM, "Unrecognized screen orientation: CTA button widget defaulting to portrait layout");
                 setLayoutParams(mPortraitLayoutParams);
                 break;
         }

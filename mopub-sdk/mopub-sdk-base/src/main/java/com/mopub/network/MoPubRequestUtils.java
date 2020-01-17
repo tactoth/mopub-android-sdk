@@ -1,9 +1,13 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.network;
 
 import android.content.Context;
 import android.net.Uri;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.mopub.common.Constants;
@@ -17,6 +21,8 @@ import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * Keeps utility methods regarding MoPubRequests in one place.
@@ -60,9 +66,16 @@ public class MoPubRequestUtils {
         Preconditions.checkNotNull(context);
         Preconditions.checkNotNull(url);
 
-        final Map<String, String> params = new HashMap<>();
         HurlStack.UrlRewriter rewriter = Networking.getUrlRewriter(context);
         final Uri uri = Uri.parse(rewriter.rewriteUrl(url));
+        return getQueryParamMap(uri);
+    }
+
+    @NonNull
+    public static Map<String, String> getQueryParamMap(@NonNull final Uri uri) {
+        Preconditions.checkNotNull(uri);
+
+        final Map<String, String> params = new HashMap<>();
         for (final String queryParam : uri.getQueryParameterNames()) {
             params.put(queryParam, TextUtils.join(",", uri.getQueryParameters(queryParam)));
         }
@@ -84,7 +97,7 @@ public class MoPubRequestUtils {
             try {
                 jsonBody.put(queryName, params.get(queryName));
             } catch (JSONException e) {
-                MoPubLog.d("Unable to add " + queryName + " to JSON body.");
+                MoPubLog.log(CUSTOM, "Unable to add " + queryName + " to JSON body.");
             }
         }
         return jsonBody.toString();

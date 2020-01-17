@@ -1,21 +1,26 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.view.View;
 
 import com.mopub.common.VisibleForTesting;
+import com.mopub.common.VisibilityTracker;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-import static com.mopub.nativeads.VisibilityTracker.VisibilityChecker;
-import static com.mopub.nativeads.VisibilityTracker.VisibilityTrackerListener;
+import static com.mopub.common.VisibilityTracker.VisibilityChecker;
+import static com.mopub.common.VisibilityTracker.VisibilityTrackerListener;
 
 /**
  * Impression tracker used to call {@link ImpressionInterface#recordImpression(View)} when a

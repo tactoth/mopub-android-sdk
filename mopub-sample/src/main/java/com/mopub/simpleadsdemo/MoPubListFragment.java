@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.simpleadsdemo;
 
 import android.app.AlertDialog;
@@ -5,13 +9,16 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentTransaction;
-import android.support.v4.app.ListFragment;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.fragment.app.ListFragment;
+
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,10 +33,13 @@ import android.widget.Toast;
 import com.mopub.common.MoPub;
 import com.mopub.common.Preconditions;
 import com.mopub.common.logging.MoPubLog;
+import com.mopub.common.privacy.ConsentStatus;
+import com.mopub.common.privacy.PersonalInfoManager;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.ERROR;
 import static com.mopub.simpleadsdemo.MoPubSampleAdUnit.AdType;
 import static com.mopub.simpleadsdemo.Utils.logToast;
 
@@ -46,13 +56,14 @@ public class MoPubListFragment extends ListFragment implements TrashCanClickList
 
     private MoPubSampleListAdapter mAdapter;
     private AdUnitDataSource mAdUnitDataSource;
+    private EditText mSearchBar;
+    private Button mSearchBarClearButton;
 
     private static final AdType[] adTypes = AdType.values();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        initializeAdapter();
     }
 
     void addAdUnitViaDeeplink(@Nullable final Uri deeplinkData) {
@@ -97,6 +108,36 @@ public class MoPubListFragment extends ListFragment implements TrashCanClickList
             }
         });
 
+        mSearchBar = view.findViewById(R.id.search_bar_et);
+        mSearchBarClearButton = view.findViewById(R.id.search_bar_clear_button);
+
+        mSearchBarClearButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mSearchBar != null) {
+                    mSearchBar.getText().clear();
+                }
+            }
+        });
+
+        mSearchBar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(final Editable text) {
+                final MoPubSampleListAdapter adapter = mAdapter;
+                if (adapter != null && text != null) {
+                    adapter.getFilter().filter(text.toString());
+                }
+            }
+        });
+
         return view;
     }
 
@@ -124,10 +165,10 @@ public class MoPubListFragment extends ListFragment implements TrashCanClickList
         try {
             fragment = fragmentClass.newInstance();
         } catch (java.lang.InstantiationException e) {
-            MoPubLog.e("Error creating fragment for class " + fragmentClass, e);
+            MoPubLog.log(ERROR, "Error creating fragment for class " + fragmentClass, e);
             return;
         } catch (IllegalAccessException e) {
-            MoPubLog.e("Error creating fragment for class " + fragmentClass, e);
+            MoPubLog.log(ERROR, "Error creating fragment for class " + fragmentClass, e);
             return;
         }
 
@@ -166,22 +207,26 @@ public class MoPubListFragment extends ListFragment implements TrashCanClickList
     @Override
     public void onResume() {
         super.onResume();
+        syncDbAdapter();
         Utils.hideSoftKeyboard(getListView());
     }
 
-    private void initializeAdapter() {
-        mAdapter = new MoPubSampleListAdapter(getActivity(), this);
+    private void syncDbAdapter() {
+        if (mAdapter == null) {
+            mAdapter = new MoPubSampleListAdapter(getActivity(), this);
 
-        mAdUnitDataSource = new AdUnitDataSource(getActivity());
+            mAdUnitDataSource = new AdUnitDataSource(getActivity());
 
-        // If you have a large amount of data, this loading work should be done in the background.
-        final List<MoPubSampleAdUnit> adUnits = mAdUnitDataSource.getAllAdUnits();
-        for (final MoPubSampleAdUnit adUnit : adUnits) {
-            mAdapter.add(adUnit);
+            // If you have a large amount of data, this loading work should be done in the background.
+            mAdapter.addAll(mAdUnitDataSource.getAllAdUnits());
+
+            setListAdapter(mAdapter);
         }
 
+        if (mSearchBar != null) {
+            mAdapter.getFilter().filter(mSearchBar.getText().toString());
+        }
         mAdapter.sort(MoPubSampleAdUnit.COMPARATOR);
-        setListAdapter(mAdapter);
     }
 
     @Override
@@ -209,14 +254,44 @@ public class MoPubListFragment extends ListFragment implements TrashCanClickList
             }
         }
         mAdapter.add(createdAdUnit);
-        mAdapter.sort(MoPubSampleAdUnit.COMPARATOR);
+        syncDbAdapter();
         return createdAdUnit;
     }
 
     void deleteAdUnit(final MoPubSampleAdUnit moPubSampleAdUnit) {
         mAdUnitDataSource.deleteSampleAdUnit(moPubSampleAdUnit);
         mAdapter.remove(moPubSampleAdUnit);
-        mAdapter.sort(MoPubSampleAdUnit.COMPARATOR);
+        syncDbAdapter();
+    }
+
+    /**
+     * Call this function to grant or revoke user consent
+     * @param consentGranted - true to grant consent, false to revoke
+     * @return - true successfully completed operation, false failed for some reason
+     */
+    boolean onChangeConsent(final boolean consentGranted) {
+        final PersonalInfoManager personalInfoManager = MoPub.getPersonalInformationManager();
+        final View view = getView();
+        if (personalInfoManager == null || view == null) {
+            MoPubLog.log(MoPubLog.SdkLogEvent.CUSTOM, getString(R.string.pim_is_not_available));
+            return false;
+        }
+
+        final EditText text = view.findViewById(R.id.status_change_notification);
+        text.setVisibility(View.VISIBLE);
+        if (consentGranted) {
+            personalInfoManager.grantConsent();
+            text.setText(R.string.consent_whitelisted);
+        } else {
+            if (personalInfoManager.getPersonalInfoConsentStatus().equals(ConsentStatus.DNT)) {
+                text.setText(R.string.donottrack_text);
+                return false;
+            }
+            personalInfoManager.revokeConsent();
+            text.setText(R.string.consent_denied);
+        }
+
+        return true;
     }
 
     public static class DeleteDialogFragment extends DialogFragment {

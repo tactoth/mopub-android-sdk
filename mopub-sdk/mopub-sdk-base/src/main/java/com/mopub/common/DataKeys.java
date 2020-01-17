@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 /**
@@ -6,16 +10,15 @@ package com.mopub.common;
 public class DataKeys {
     public static final String AD_REPORT_KEY = "mopub-intent-ad-report";
     public static final String HTML_RESPONSE_BODY_KEY = "html-response-body";
-    public static final String REDIRECT_URL_KEY = "redirect-url";
     public static final String CLICKTHROUGH_URL_KEY = "clickthrough-url";
     public static final String CLICK_TRACKING_URL_KEY = "click-tracking-url";
-    public static final String SCROLLABLE_KEY = "scrollable";
     public static final String CREATIVE_ORIENTATION_KEY = "com_mopub_orientation";
     public static final String JSON_BODY_KEY = "com_mopub_native_json";
     public static final String BROADCAST_IDENTIFIER_KEY = "broadcastIdentifier";
     public static final String AD_UNIT_ID_KEY = "com_mopub_ad_unit_id";
     public static final String AD_WIDTH = "com_mopub_ad_width";
     public static final String AD_HEIGHT = "com_mopub_ad_height";
+    public static final String ADUNIT_FORMAT = "adunit_format";
 
     // Banner imp tracking fields
     public static final String BANNER_IMPRESSION_MIN_VISIBLE_DIPS = "banner-impression-min-pixels";
@@ -46,12 +49,19 @@ public class DataKeys {
     // Advanced bidding fields
     public static final String ADM_KEY = "adm";
 
+    // Video tracking fields
+    public static final String VIDEO_TRACKERS_KEY = "video-trackers";
+
     /**
      * @deprecated as of 4.12, replaced by {@link #REWARDED_AD_CUSTOMER_ID_KEY}
      */
     @Deprecated
     public static final String REWARDED_VIDEO_CUSTOMER_ID = "rewarded-ad-customer-id";
 
-    // Video tracking fields
-    public static final String VIDEO_TRACKERS_KEY = "video-trackers";
+    /**
+     * @deprecated as of 5.4 since this is no longer used.
+     */
+    @Deprecated
+    public static final String REDIRECT_URL_KEY = "redirect-url";
+
 }

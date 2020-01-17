@@ -1,20 +1,21 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common.privacy;
 
 import android.app.Activity;
 
 import com.mopub.common.test.support.SdkTestRunner;
-import com.mopub.mobileads.BuildConfig;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import static org.fest.assertions.api.Assertions.assertThat;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class PersonalInfoDataTest {
 
     Activity activity;
@@ -23,7 +24,7 @@ public class PersonalInfoDataTest {
     @Before
     public void setUp() {
         activity = Robolectric.buildActivity(Activity.class).get();
-        subject = new PersonalInfoData(activity, "adUnit");
+        subject = new PersonalInfoData(activity);
     }
 
     @Test
@@ -41,5 +42,20 @@ public class PersonalInfoDataTest {
                 activity, null);
 
         assertThat(result).isEqualTo("someurl://en/somepath");
+    }
+
+    @Test
+    public void chooseAdUnit_withEmptyAdUnit_shouldChooseCachedLastAdUnitIdUsedForInit() {
+        subject.setCachedLastAdUnitIdUsedForInit("cached");
+
+        assertThat(subject.chooseAdUnit()).isEqualTo("cached");
+    }
+
+    @Test
+    public void chooseAdUnit_withAdUnit_shouldChooseAdUnit() {
+        subject.setAdUnit("adunit");
+        subject.setCachedLastAdUnitIdUsedForInit("cached");
+
+        assertThat(subject.chooseAdUnit()).isEqualTo("adunit");
     }
 }

@@ -1,8 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.mopub.common.Constants;
 import com.mopub.common.MoPub;
@@ -13,6 +17,8 @@ import com.mopub.common.privacy.ConsentData;
 import com.mopub.common.privacy.PersonalInfoManager;
 import com.mopub.network.TrackingRequest;
 import com.mopub.volley.VolleyError;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 public class MoPubConversionTracker {
     private static final String WANT_TO_TRACK = " wantToTrack";
@@ -48,16 +54,16 @@ public class MoPubConversionTracker {
      *
      * @param sessionTracker - true for session tracking
      */
-    public void reportAppOpen(boolean sessionTracker) {
+    public void reportAppOpen(final boolean sessionTracker) {
         final PersonalInfoManager infoManager = MoPub.getPersonalInformationManager();
         if (infoManager == null) {
-            MoPubLog.w("Cannot report app open until initialization is done");
+            MoPubLog.log(CUSTOM, "Cannot report app open until initialization is done");
             return;
         }
 
 
         if (!sessionTracker && isAlreadyTracked()) {
-            MoPubLog.d("Conversion already tracked");
+            MoPubLog.log(CUSTOM, "Conversion already tracked");
             return;
         }
 
@@ -83,6 +89,9 @@ public class MoPubConversionTracker {
                 mContext, new TrackingRequest.Listener() {
                     @Override
                     public void onResponse(@NonNull final String url) {
+                        if (sessionTracker) {
+                            return;
+                        }
                         mSharedPreferences
                                 .edit()
                                 .putBoolean(mIsTrackedKey, true)

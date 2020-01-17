@@ -1,8 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -11,10 +15,11 @@ import com.mopub.common.logging.MoPubLog;
 
 import java.util.WeakHashMap;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
+
 /**
- * @deprecated As of release 2.4, use {@link MoPubStaticNativeAdRenderer} instead
+ * Use {@link MoPubStaticNativeAdRenderer} instead
  */
-@Deprecated
 class NativeAdViewHelper {
     private NativeAdViewHelper() {
     }
@@ -30,9 +35,8 @@ class NativeAdViewHelper {
      * up its state before associating with a new {@link NativeAd}
      */
     static private final WeakHashMap<View, NativeAd> sNativeAdMap =
-            new WeakHashMap<View, NativeAd>();
+            new WeakHashMap<>();
 
-    @Deprecated
     @NonNull
     static View getAdView(@Nullable View convertView,
             @Nullable final ViewGroup parent,
@@ -44,7 +48,7 @@ class NativeAdViewHelper {
         }
 
         if (nativeAd == null || nativeAd.isDestroyed()) {
-            MoPubLog.d("NativeAd null or invalid. Returning empty view");
+            MoPubLog.log(CUSTOM, "NativeAd null or invalid. Returning empty view");
             // Only create a view if one hasn't been created already
             if (convertView == null || !ViewType.EMPTY.equals(convertView.getTag())) {
                 convertView = new View(context);

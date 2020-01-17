@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common.privacy;
 
 import android.app.Activity;
@@ -9,7 +13,6 @@ import com.mopub.common.Constants;
 import com.mopub.common.MoPub;
 import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.common.util.Intents;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.mobileads.MoPubErrorCode;
 import com.mopub.network.MoPubNetworkError;
 import com.mopub.network.MoPubRequestQueue;
@@ -28,7 +31,6 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import static com.mopub.network.MoPubNetworkError.Reason.BAD_BODY;
 import static org.fest.assertions.api.Assertions.assertThat;
@@ -39,7 +41,6 @@ import static org.powermock.api.mockito.PowerMockito.verifyStatic;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.json.*"})
 @PrepareForTest({Networking.class, Intents.class})
 public class ConsentDialogControllerTest {
@@ -64,7 +65,8 @@ public class ConsentDialogControllerTest {
         mockRequestQueue = Mockito.mock(MoPubRequestQueueTest.TestMoPubRequestQueue.class);
         mockDialogListener = Mockito.mock(ConsentDialogListener.class);
         dialogResponse = new ConsentDialogResponse(HTML_TEXT);
-        personalInfoData = new PersonalInfoData(context, AD_UNIT_ID);
+        personalInfoData = new PersonalInfoData(context);
+        personalInfoData.setAdUnit(AD_UNIT_ID);
 
         PowerMockito.mockStatic(Networking.class);
         when(Networking.getRequestQueue(context)).thenReturn(mockRequestQueue);
@@ -200,6 +202,6 @@ public class ConsentDialogControllerTest {
                 "&language=en" +
                 "&gdpr_applies=1" +
                 "&force_gdpr_applies=0" +
-                "&bundle=com.mopub.mobileads";
+                "&bundle=com.mopub.mobileads.test";
     }
 }

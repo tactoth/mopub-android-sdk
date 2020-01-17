@@ -1,15 +1,21 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.AudioManager;
 import android.os.Handler;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.view.Surface;
 import android.view.TextureView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlaybackException;
@@ -23,8 +29,8 @@ import com.google.android.exoplayer2.audio.MediaCodecAudioRenderer;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.trackselection.TrackSelector;
 import com.google.android.exoplayer2.video.MediaCodecVideoRenderer;
+import com.mopub.common.VisibilityTracker.VisibilityChecker;
 import com.mopub.common.test.support.SdkTestRunner;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.mobileads.VastTracker;
 import com.mopub.mobileads.VastVideoConfig;
 import com.mopub.nativeads.NativeVideoController.Listener;
@@ -32,7 +38,6 @@ import com.mopub.nativeads.NativeVideoController.MoPubExoPlayerFactory;
 import com.mopub.nativeads.NativeVideoController.NativeVideoProgressRunnable;
 import com.mopub.nativeads.NativeVideoController.NativeVideoProgressRunnable.ProgressListener;
 import com.mopub.nativeads.NativeVideoController.VisibilityTrackingEvent;
-import com.mopub.nativeads.VisibilityTracker.VisibilityChecker;
 import com.mopub.network.MoPubRequestQueue;
 import com.mopub.network.Networking;
 import com.mopub.network.TrackingRequest;
@@ -45,7 +50,6 @@ import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -75,7 +79,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class NativeVideoControllerTest {
 
     private NativeVideoController subject;
@@ -162,8 +165,10 @@ public class NativeVideoControllerTest {
                 mockNativeVideoProgressRunnable,
                 new MoPubExoPlayerFactory() {
                     @Override
-                    public ExoPlayer newInstance(@NonNull final Renderer[] renderers,
-                            @NonNull final TrackSelector trackSelector, @Nullable LoadControl loadControl) {
+                    public ExoPlayer newInstance(@NonNull final Context context,
+                                                 @NonNull final Renderer[] renderers,
+                                                 @NonNull final TrackSelector trackSelector,
+                                                 @Nullable LoadControl loadControl) {
                         return mockExoPlayer;
                     }
                 },
@@ -387,6 +392,7 @@ public class NativeVideoControllerTest {
     public void prepare_shouldPreparePlayer() {
         MoPubExoPlayerFactory mockMoPubExoPlayerFactory = mock(MoPubExoPlayerFactory.class);
         when(mockMoPubExoPlayerFactory.newInstance(
+                any(Context.class),
                 any(Renderer[].class),
                 any(TrackSelector.class),
                 any(LoadControl.class))
@@ -405,7 +411,7 @@ public class NativeVideoControllerTest {
                 mockAudioManager);
         subject.prepare(this);
 
-        verify(mockMoPubExoPlayerFactory).newInstance(any(Renderer[].class),
+        verify(mockMoPubExoPlayerFactory).newInstance(any(Context.class), any(Renderer[].class),
                 any(TrackSelector.class), any(LoadControl.class));
         verify(mockNativeVideoProgressRunnable).setExoPlayer(mockExoPlayer);
         verify(mockNativeVideoProgressRunnable).startRepeating(50);
@@ -572,8 +578,9 @@ public class NativeVideoControllerTest {
                 mockNativeVideoProgressRunnable,
                 new MoPubExoPlayerFactory() {
                     @Override
-                    public ExoPlayer newInstance(Renderer[] renderers, TrackSelector trackSelector,
-                            LoadControl loadControl) {
+                    public ExoPlayer newInstance(Context context, Renderer[] renderers, TrackSelector trackSelector, LoadControl loadControl)
+
+                    {
                         return mockExoPlayer;
                     }
                 },

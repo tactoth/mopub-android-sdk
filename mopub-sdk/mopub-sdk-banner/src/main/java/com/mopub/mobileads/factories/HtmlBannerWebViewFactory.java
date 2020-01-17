@@ -1,7 +1,11 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads.factories;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.mopub.common.AdReport;
 import com.mopub.mobileads.HtmlBannerWebView;
@@ -16,21 +20,17 @@ public class HtmlBannerWebViewFactory {
             Context context,
             AdReport adReport,
             CustomEventBannerListener customEventBannerListener,
-            boolean isScrollable,
-            String redirectUrl,
             String clickthroughUrl) {
-        return instance.internalCreate(context, adReport, customEventBannerListener, isScrollable, redirectUrl, clickthroughUrl);
+        return instance.internalCreate(context, adReport, customEventBannerListener, clickthroughUrl);
     }
 
     public HtmlBannerWebView internalCreate(
             Context context,
             AdReport adReport,
             CustomEventBannerListener customEventBannerListener,
-            boolean isScrollable,
-            String redirectUrl,
             String clickthroughUrl) {
         HtmlBannerWebView htmlBannerWebView = new HtmlBannerWebView(context, adReport);
-        htmlBannerWebView.init(customEventBannerListener, isScrollable, redirectUrl, clickthroughUrl, adReport.getDspCreativeId());
+        htmlBannerWebView.init(customEventBannerListener, clickthroughUrl, adReport.getDspCreativeId());
         return htmlBannerWebView;
     }
 

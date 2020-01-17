@@ -1,29 +1,33 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.simpleadsdemo;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
-import com.mopub.common.MoPub;
 import com.mopub.common.MoPubReward;
-import com.mopub.common.SdkConfiguration;
 import com.mopub.mobileads.MoPubErrorCode;
 import com.mopub.mobileads.MoPubRewardedVideoListener;
 import com.mopub.mobileads.MoPubRewardedVideoManager.RequestParameters;
 import com.mopub.mobileads.MoPubRewardedVideos;
 
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -33,15 +37,34 @@ import static com.mopub.simpleadsdemo.Utils.logToast;
 
 public class RewardedVideoDetailFragment extends Fragment implements MoPubRewardedVideoListener {
 
-    private static boolean sRewardedVideoInitialized;
-
-    // Include any custom event rewarded video classes, if available, for initialization.
-    private static final List<String> sNetworksToInit = new LinkedList<>();
-
     @Nullable private Button mShowButton;
     @Nullable private String mAdUnitId;
     @Nullable private Map<String, MoPubReward> mMoPubRewardsMap;
     @Nullable private MoPubReward mSelectedReward;
+    @Nullable private CallbacksAdapter mCallbacksAdapter;
+
+    private enum RewardedCallbacks {
+        LOADED("onRewardedVideoLoadSuccess"),
+        FAILED("onRewardedVideoLoadFailed"),
+        STARTED("onRewardedVideoStarted"),
+        PLAY_ERROR("onRewardedVideoPlaybackError"),
+        CLICKED("onRewardedVideoClicked"),
+        CLOSED("onRewardedVideoClosed"),
+        COMPLETED("onRewardedVideoCompleted");
+
+        RewardedCallbacks(@NonNull final String name) {
+            this.name = name;
+        }
+
+        @NonNull
+        private final String name;
+
+        @Override
+        @NonNull
+        public String toString() {
+            return name;
+        }
+    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -55,12 +78,6 @@ public class RewardedVideoDetailFragment extends Fragment implements MoPubReward
         hideSoftKeyboard(views.mKeywordsField);
         hideSoftKeyboard(views.mUserDataKeywordsField);
 
-        if (!sRewardedVideoInitialized) {
-            MoPub.initializeSdk(getActivity(), new SdkConfiguration.Builder(
-                            "b195f8dd8ded45fe847ad89ed1d016da")
-                            .withNetworksToInit(sNetworksToInit).build(), null);
-            sRewardedVideoInitialized = true;
-        }
         MoPubRewardedVideos.setRewardedVideoListener(this);
 
         mAdUnitId = adConfiguration.getAdUnitId();
@@ -73,6 +90,9 @@ public class RewardedVideoDetailFragment extends Fragment implements MoPubReward
             public void onClick(View view) {
                 if (mAdUnitId == null) {
                     return;
+                }
+                if (mCallbacksAdapter != null) {
+                    mCallbacksAdapter.generateCallbackList(RewardedCallbacks.class);
                 }
                 MoPubRewardedVideos.loadRewardedVideo(mAdUnitId,
                         new RequestParameters(views.mKeywordsField.getText().toString(), views.mUserDataKeywordsField.getText().toString(),null,
@@ -102,11 +122,21 @@ public class RewardedVideoDetailFragment extends Fragment implements MoPubReward
             views.mCustomDataField.setVisibility(View.VISIBLE);
         }
 
+        final RecyclerView callbacksView = view.findViewById(R.id.callbacks_recycler_view);
+        final Context context = getContext();
+        if (callbacksView != null && context != null) {
+            callbacksView.setLayoutManager(new LinearLayoutManager(context));
+            mCallbacksAdapter = new CallbacksAdapter(context);
+            mCallbacksAdapter.generateCallbackList(RewardedCallbacks.class);
+            callbacksView.setAdapter(mCallbacksAdapter);
+        }
+
         return view;
     }
 
     @Override
     public void onDestroyView() {
+        MoPubRewardedVideos.setRewardedVideoListener(null);
         super.onDestroyView();
     }
 
@@ -117,7 +147,11 @@ public class RewardedVideoDetailFragment extends Fragment implements MoPubReward
             if (mShowButton != null) {
                 mShowButton.setEnabled(true);
             }
-            logToast(getActivity(), "Rewarded video loaded.");
+            if (mCallbacksAdapter == null) {
+                logToast(getActivity(), "Rewarded video loaded.");
+            } else {
+                mCallbacksAdapter.notifyCallbackCalled(RewardedCallbacks.LOADED.toString());
+            }
 
             Set<MoPubReward> availableRewards = MoPubRewardedVideos.getAvailableRewards(mAdUnitId);
 
@@ -153,46 +187,68 @@ public class RewardedVideoDetailFragment extends Fragment implements MoPubReward
             if (mShowButton != null) {
                 mShowButton.setEnabled(false);
             }
-            logToast(getActivity(), String.format(Locale.US, "Rewarded video failed to load: %s",
-                    errorCode.toString()));
+            if (mCallbacksAdapter == null) {
+                logToast(getActivity(), String.format(Locale.US, "Rewarded video failed to load: %s",
+                        errorCode.toString()));
+                return;
+            }
+            mCallbacksAdapter.notifyCallbackCalled(RewardedCallbacks.FAILED.toString(),
+                    errorCode.toString());
         }
     }
 
     @Override
     public void onRewardedVideoStarted(@NonNull final String adUnitId) {
         if (adUnitId.equals(mAdUnitId)) {
-            logToast(getActivity(), "Rewarded video started.");
             if (mShowButton != null) {
                 mShowButton.setEnabled(false);
             }
+            if (mCallbacksAdapter == null) {
+                logToast(getActivity(), "Rewarded video started.");
+                return;
+            }
+            mCallbacksAdapter.notifyCallbackCalled(RewardedCallbacks.STARTED.toString());
         }
     }
 
     @Override
     public void onRewardedVideoPlaybackError(@NonNull final String adUnitId, @NonNull final MoPubErrorCode errorCode) {
         if (adUnitId.equals(mAdUnitId)) {
-            logToast(getActivity(), String.format(Locale.US, "Rewarded video playback error: %s",
-                    errorCode.toString()));
             if (mShowButton != null) {
                 mShowButton.setEnabled(false);
             }
+            if (mCallbacksAdapter == null) {
+                logToast(getActivity(), String.format(Locale.US, "Rewarded video playback error: %s",
+                        errorCode.toString()));
+                return;
+            }
+            mCallbacksAdapter.notifyCallbackCalled(RewardedCallbacks.PLAY_ERROR.toString(),
+                    errorCode.toString());
         }
     }
 
     @Override
     public void onRewardedVideoClicked(@NonNull final String adUnitId) {
         if (adUnitId.equals(mAdUnitId)) {
-            logToast(getActivity(), "Rewarded video clicked.");
+            if (mCallbacksAdapter == null) {
+                logToast(getActivity(), "Rewarded video clicked.");
+                return;
+            }
+            mCallbacksAdapter.notifyCallbackCalled(RewardedCallbacks.CLICKED.toString());
         }
     }
 
     @Override
     public void onRewardedVideoClosed(@NonNull final String adUnitId) {
         if (adUnitId.equals(mAdUnitId)) {
-            logToast(getActivity(), "Rewarded video closed.");
             if (mShowButton != null) {
                 mShowButton.setEnabled(false);
             }
+            if (mCallbacksAdapter == null) {
+                logToast(getActivity(), "Rewarded video closed.");
+                return;
+            }
+            mCallbacksAdapter.notifyCallbackCalled(RewardedCallbacks.CLOSED.toString());
         }
     }
 
@@ -200,11 +256,15 @@ public class RewardedVideoDetailFragment extends Fragment implements MoPubReward
     public void onRewardedVideoCompleted(@NonNull final Set<String> adUnitIds,
             @NonNull final MoPubReward reward) {
         if (adUnitIds.contains(mAdUnitId)) {
-            logToast(getActivity(),
-                    String.format(Locale.US,
-                            "Rewarded video completed with reward  \"%d %s\"",
-                            reward.getAmount(),
-                            reward.getLabel()));
+            final String message = String.format(Locale.US,
+                    "Rewarded video completed with reward  \"%d %s\"",
+                    reward.getAmount(),
+                    reward.getLabel());
+            if (mCallbacksAdapter == null) {
+                logToast(getActivity(), message);
+                return;
+            }
+            mCallbacksAdapter.notifyCallbackCalled(RewardedCallbacks.COMPLETED.toString(), message);
         }
     }
 

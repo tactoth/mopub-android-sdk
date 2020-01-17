@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mraid;
 
 import android.app.Activity;
@@ -7,17 +11,18 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import com.mopub.common.AdReport;
 import com.mopub.common.CloseableLayout.ClosePosition;
-import com.mopub.common.ExternalViewabilitySessionManager;
 import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.common.util.Utils;
 import com.mopub.mobileads.BaseVideoPlayerActivityTest;
-import com.mopub.mobileads.BuildConfig;
-import com.mopub.mobileads.Interstitial;
+import com.mopub.mobileads.MoPubErrorCode;
 import com.mopub.mobileads.MraidVideoPlayerActivity;
 import com.mopub.mobileads.WebViewCacheService;
 import com.mopub.mraid.MraidBridge.MraidBridgeListener;
@@ -55,13 +60,12 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class MraidControllerTest {
-    private long broadcastIdentifier = 123;
     @Mock private AdReport mockAdReport;
     @Mock private MraidBridge mockBridge;
     @Mock private MraidBridge mockTwoPartBridge;
@@ -70,8 +74,6 @@ public class MraidControllerTest {
     @Mock private MraidListener mockMraidListener;
     @Mock private UseCustomCloseListener mockUseCustomCloseListener;
     @Mock private OrientationBroadcastReceiver mockOrientationBroadcastReceiver;
-    @Mock private MraidWebView mockWebView;
-    @Mock private ExternalViewabilitySessionManager mockViewabilityManager;
     @Captor private ArgumentCaptor<MraidBridgeListener> bridgeListenerCaptor;
     @Captor private ArgumentCaptor<MraidBridgeListener> twoPartBridgeListenerCaptor;
 
@@ -82,14 +84,13 @@ public class MraidControllerTest {
 
     @Before
     public void setUp() {
-        ShadowApplication.setDisplayMetricsDensity(1.0f);
         WebViewCacheService.clearAll();
 
         activity = spy(Robolectric.buildActivity(Activity.class).create().get());
         activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
         rootView = new FrameLayout(activity);
-        when(mockBridge.isVisible()).thenReturn(true);
+        when(mockBridge.isViewable()).thenReturn(true);
 
         // By default, immediately fulfill a screen metrics wait request. Individual tests can
         // reset this, if desired.
@@ -110,7 +111,7 @@ public class MraidControllerTest {
         subject.setMraidListener(mockMraidListener);
         subject.setOrientationBroadcastReceiver(mockOrientationBroadcastReceiver);
         subject.setRootView(rootView);
-        subject.fillContent(null, "fake_html_data", null);
+        subject.fillContent("fake_html_data", null);
 
         verify(mockBridge).setMraidBridgeListener(bridgeListenerCaptor.capture());
         verify(mockTwoPartBridge).setMraidBridgeListener(twoPartBridgeListenerCaptor.capture());
@@ -134,17 +135,16 @@ public class MraidControllerTest {
     }
 
     @Test
-    public void handlePageLoad_shouldNotifyBridgeOfVisibilityPlacementScreenSizeAndSupports() {
-        when(mockBridge.isVisible()).thenReturn(true);
+    public void handlePageLoad_shouldNotifyBridgeOfVisibilityPlacementAndSupports() {
+        when(mockBridge.isViewable()).thenReturn(true);
 
         subject.handlePageLoad();
 
         verify(mockBridge).notifyViewability(true);
         verify(mockBridge).notifyPlacementType(PlacementType.INLINE);
-        verify(mockBridge).notifyScreenMetrics(any(MraidScreenMetrics.class));
 
         // The actual values here are supplied by the Mraids class, which has separate tests.
-        verify(mockBridge).notifySupports(false, false, false, false, false);
+        verify(mockBridge, times(1)).notifySupports(anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean());
     }
 
     @Test
@@ -213,7 +213,7 @@ public class MraidControllerTest {
         subject.setRootView(rootView);
 
         // Move to DEFAULT state
-        subject.fillContent(null, "fake_html_data", null);
+        subject.fillContent("fake_html_data", null);
         subject.handlePageLoad();
 
         subject.handleResize(100, 200, 0, 0, ClosePosition.TOP_RIGHT, true);
@@ -345,7 +345,7 @@ public class MraidControllerTest {
         subject.setRootView(rootView);
 
         // Move to DEFAULT state
-        subject.fillContent(null, "fake_html_data", null);
+        subject.fillContent("fake_html_data", null);
         subject.handlePageLoad();
 
         subject.handleExpand(null, false);
@@ -402,6 +402,41 @@ public class MraidControllerTest {
         assertThat(subject.getAdContainer().getChildCount()).isEqualTo(1);
         verify(mockMraidListener).onExpand();
         assertThat(subject.getViewState()).isEqualTo(ViewState.EXPANDED);
+    }
+
+    @Config(sdk = Build.VERSION_CODES.JELLY_BEAN_MR2)
+    @Test
+    public void handleExpand_shouldHaveSystemUiFlagsSet()
+            throws MraidCommandException {
+
+        final int flags = View.SYSTEM_UI_FLAG_LOW_PROFILE
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+
+        subject.handlePageLoad();
+
+        subject.handleExpand(null, false);
+        assertThat(rootView.getSystemUiVisibility()).isEqualTo(flags);
+    }
+
+    @Config(sdk = Build.VERSION_CODES.KITKAT)
+    @Test
+    public void handleExpand_withApi19AndAbove_shouldHaveSystemUiFlagsSetWithImmersive()
+            throws MraidCommandException {
+
+        final int flags = View.SYSTEM_UI_FLAG_LOW_PROFILE
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+
+        subject.handlePageLoad();
+
+        subject.handleExpand(null, false);
+        assertThat(rootView.getSystemUiVisibility()).isEqualTo(flags);
     }
 
     @Test
@@ -564,25 +599,7 @@ public class MraidControllerTest {
     }
 
     @Test
-    public void fillContent_withCacheHit_shouldNotLoadHtmlData_shouldCallMraidListenerOnLoaded() {
-        subject = new MraidController(
-                activity, mockAdReport, PlacementType.INLINE,
-                mockBridge, mockTwoPartBridge, mockScreenMetricsWaiter);
-        subject.setMraidListener(mockMraidListener);
-        reset(mockMraidListener, mockBridge);
-        subject.setOrientationBroadcastReceiver(mockOrientationBroadcastReceiver);
-        subject.setRootView(rootView);
-        WebViewCacheService.storeWebViewConfig(broadcastIdentifier, new Interstitial() {},
-                mockWebView, mockViewabilityManager);
-
-        subject.fillContent(broadcastIdentifier, "fake_html_data", null);
-
-        verify(mockBridge, never()).setContentHtml("fake_html_data");
-        verify(mockMraidListener).onLoaded(subject.getAdContainer());
-    }
-
-    @Test
-    public void fillContent_withCacheMiss_shouldLoadHtmlData() {
+    public void fillContent_shouldLoadHtmlData() {
         subject = new MraidController(
                 activity, mockAdReport, PlacementType.INLINE,
                 mockBridge, mockTwoPartBridge, mockScreenMetricsWaiter);
@@ -591,7 +608,7 @@ public class MraidControllerTest {
         subject.setOrientationBroadcastReceiver(mockOrientationBroadcastReceiver);
         subject.setRootView(rootView);
 
-        subject.fillContent(broadcastIdentifier, "fake_html_data", null);
+        subject.fillContent("fake_html_data", null);
 
         verify(mockBridge).setContentHtml("fake_html_data");
         verify(mockMraidListener, never()).onLoaded(any(View.class));
@@ -791,11 +808,18 @@ public class MraidControllerTest {
         assertThat(activity.getRequestedOrientation()).isEqualTo(ActivityInfo
                 .SCREEN_ORIENTATION_PORTRAIT);
 
+        subject.resume();
         subject.handlePageLoad();
         subject.handleSetOrientationProperties(true, MraidOrientation.LANDSCAPE);
 
         assertThat(activity.getRequestedOrientation()).isEqualTo(ActivityInfo
                 .SCREEN_ORIENTATION_LANDSCAPE);
+    }
+
+    @Test
+    public void handleRenderProcessGone_shouldNotifyMraidListener() {
+        subject.handleRenderProcessGone(MoPubErrorCode.RENDER_PROCESS_GONE_WITH_CRASH);
+        verify(mockMraidListener).onRenderProcessGone(any(MoPubErrorCode.class));
     }
 
     @Test
@@ -806,6 +830,92 @@ public class MraidControllerTest {
         final boolean result = subject.shouldAllowForceOrientation(MraidOrientation.NONE);
 
         assertThat(result).isTrue();
+    }
+
+    @Test
+    public void isInlineVideoAvailable_whenPlacementTypeIsInline_whenViewIsHardwareAccelerated_shouldReturnTrue() throws Exception {
+        Window mockWindow = mock(Window.class);
+        WindowManager.LayoutParams mockLayoutParams = mock(WindowManager.LayoutParams.class);
+
+        mockLayoutParams.flags = WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
+        when(mockWindow.getAttributes()).thenReturn(mockLayoutParams);
+        when(activity.getWindow()).thenReturn(mockWindow);
+
+        subject = new MraidController(
+                activity, mockAdReport, PlacementType.INLINE,
+                mockBridge, mockTwoPartBridge, mockScreenMetricsWaiter);
+
+        subject.fillContent("fake_html_data", null);
+
+        View mockView = mock(View.class);
+        when(mockView.isHardwareAccelerated()).thenReturn(true);
+        when(mockView.getLayerType()).thenReturn(View.LAYER_TYPE_HARDWARE);
+
+        assertThat(subject.isInlineVideoAvailable()).isTrue();
+    }
+
+    @Test
+    public void isInlineVideoAvailable_whenPlacementTypeIsInline_whenViewIsNotHardwareAccelerated_shouldReturnFalse() throws Exception {
+        Window mockWindow = mock(Window.class);
+        WindowManager.LayoutParams mockLayoutParams = mock(WindowManager.LayoutParams.class);
+
+        mockLayoutParams.flags = WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
+        when(mockWindow.getAttributes()).thenReturn(mockLayoutParams);
+        when(activity.getWindow()).thenReturn(mockWindow);
+
+        subject = new MraidController(
+                activity, mockAdReport, PlacementType.INLINE,
+                mockBridge, mockTwoPartBridge, mockScreenMetricsWaiter);
+
+        subject.fillContent("fake_html_data", null);
+
+        View mockView = mock(View.class);
+        when(mockView.isHardwareAccelerated()).thenReturn(false);
+        when(mockView.getLayerType()).thenReturn(View.LAYER_TYPE_SOFTWARE);
+
+        assertThat(subject.isInlineVideoAvailable()).isTrue();
+    }
+
+    @Test
+    public void isInlineVideoAvailable_whenPlacementTypeIsNotInline_whenViewIsHardwareAccelerated_shouldReturnTrue() throws Exception {
+        Window mockWindow = mock(Window.class);
+        mockWindow.setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+
+        when(activity.getWindow()).thenReturn(mockWindow);
+
+        subject = new MraidController(
+                activity, mockAdReport, PlacementType.INTERSTITIAL,
+                mockBridge, mockTwoPartBridge, mockScreenMetricsWaiter);
+
+        subject.fillContent("fake_html_data", null);
+
+        View mockView = mock(View.class);
+        when(mockView.isHardwareAccelerated()).thenReturn(true);
+        when(mockView.getLayerType()).thenReturn(View.LAYER_TYPE_HARDWARE);
+
+        assertThat(subject.isInlineVideoAvailable()).isTrue();
+    }
+
+    @Test
+    public void isInlineVideoAvailable_whenPlacementTypeIsInNotline_whenViewIsNotHardwareAccelerated_shouldReturnTrue() throws Exception {
+        Window mockWindow = mock(Window.class);
+        mockWindow.setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+
+        when(activity.getWindow()).thenReturn(mockWindow);
+
+        subject = new MraidController(
+                activity, mockAdReport, PlacementType.INTERSTITIAL,
+                mockBridge, mockTwoPartBridge, mockScreenMetricsWaiter);
+
+        subject.fillContent("fake_html_data", null);
+
+        View mockView = mock(View.class);
+        when(mockView.isHardwareAccelerated()).thenReturn(false);
+        when(mockView.getLayerType()).thenReturn(View.LAYER_TYPE_SOFTWARE);
+
+        assertThat(subject.isInlineVideoAvailable()).isTrue();
     }
 
     @Test
@@ -967,13 +1077,22 @@ public class MraidControllerTest {
     }
 
     @Test
-    public void destroy_shouldCancelLastMetricsRequest_shouldUnregisterBroadcastReceiver_shouldDetachAllBridges() {
+    public void destroy_shouldCancelLastMetricsRequest_shouldUnregisterBroadcastReceiver_shouldDetachAllBridges_shouldUnapplyOrientation() throws Exception {
+        setMockActivityInfo(true, ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+                ActivityInfo.CONFIG_ORIENTATION | ActivityInfo.CONFIG_SCREEN_SIZE);
+        subject.handleSetOrientationProperties(false, MraidOrientation.LANDSCAPE);
+        subject.applyOrientation();
+        assertThat(activity.getRequestedOrientation())
+                .isEqualTo(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+
         subject.destroy();
 
         verify(mockScreenMetricsWaiter).cancelLastRequest();
         verify(mockOrientationBroadcastReceiver).unregister();
         verify(mockBridge).detach();
         verify(mockTwoPartBridge).detach();
+        assertThat(activity.getRequestedOrientation())
+                .isEqualTo(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
     }
 
     @Test
@@ -1040,6 +1159,212 @@ public class MraidControllerTest {
         subject.destroy();
 
         assertThat(rootView.getChildCount()).isEqualTo(0);
+    }
+
+    @Test
+    public void destroy_shouldResetSystemUIFlags()
+            throws MraidCommandException {
+
+        final int originalFlags = rootView.getSystemUiVisibility();
+        final int newFlags = originalFlags + 1;
+
+        rootView.setSystemUiVisibility(newFlags);
+
+        // make sure the flags were set
+        assertThat(rootView.getSystemUiVisibility()).isEqualTo(newFlags);
+
+        subject.destroy();
+
+        assertThat(rootView.getSystemUiVisibility()).isEqualTo(originalFlags);
+    }
+
+    @Test
+    public void callMraidListenerCallbacks_withVariousStates_shouldCallCorrectMraidListenerCallback() {
+        // Previous state LOADING
+
+        ViewState previousViewState = ViewState.LOADING;
+        ViewState currentViewState = ViewState.LOADING;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verifyZeroInteractions(mockMraidListener);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.LOADING;
+        currentViewState = ViewState.DEFAULT;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verifyZeroInteractions(mockMraidListener);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.LOADING;
+        currentViewState = ViewState.RESIZED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onResize(false);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.LOADING;
+        currentViewState = ViewState.EXPANDED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onExpand();
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.LOADING;
+        currentViewState = ViewState.HIDDEN;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onClose();
+
+
+        // Previous state DEFAULT
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.DEFAULT;
+        currentViewState = ViewState.LOADING;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verifyZeroInteractions(mockMraidListener);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.DEFAULT;
+        currentViewState = ViewState.DEFAULT;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verifyZeroInteractions(mockMraidListener);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.DEFAULT;
+        currentViewState = ViewState.RESIZED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onResize(false);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.DEFAULT;
+        currentViewState = ViewState.EXPANDED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onExpand();
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.DEFAULT;
+        currentViewState = ViewState.HIDDEN;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onClose();
+
+
+        // Previous state RESIZED
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.RESIZED;
+        currentViewState = ViewState.LOADING;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verifyZeroInteractions(mockMraidListener);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.RESIZED;
+        currentViewState = ViewState.DEFAULT;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onResize(true);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.RESIZED;
+        currentViewState = ViewState.RESIZED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onResize(false);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.RESIZED;
+        currentViewState = ViewState.EXPANDED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onExpand();
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.RESIZED;
+        currentViewState = ViewState.HIDDEN;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onClose();
+
+
+        // Previous state EXPANDED
+
+        previousViewState = ViewState.EXPANDED;
+        currentViewState = ViewState.LOADING;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verifyZeroInteractions(mockMraidListener);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.EXPANDED;
+        currentViewState = ViewState.DEFAULT;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onClose();
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.EXPANDED;
+        currentViewState = ViewState.RESIZED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onResize(false);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.EXPANDED;
+        currentViewState = ViewState.EXPANDED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onExpand();
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.EXPANDED;
+        currentViewState = ViewState.HIDDEN;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onClose();
+
+
+        // Previous state HIDDEN
+
+        previousViewState = ViewState.HIDDEN;
+        currentViewState = ViewState.LOADING;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verifyZeroInteractions(mockMraidListener);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.HIDDEN;
+        currentViewState = ViewState.DEFAULT;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verifyZeroInteractions(mockMraidListener);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.HIDDEN;
+        currentViewState = ViewState.RESIZED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onResize(false);
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.HIDDEN;
+        currentViewState = ViewState.EXPANDED;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onExpand();
+
+        reset(mockMraidListener);
+        previousViewState = ViewState.HIDDEN;
+        currentViewState = ViewState.HIDDEN;
+        MraidController.callMraidListenerCallbacks(mockMraidListener, previousViewState,
+                currentViewState);
+        verify(mockMraidListener).onClose();
     }
 
     private void setMockActivityInfo(final boolean activityInfoFound, int screenOrientation,

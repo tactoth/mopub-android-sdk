@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common.util;
 
 import android.annotation.TargetApi;
@@ -13,9 +17,9 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.StatFs;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import android.util.DisplayMetrics;
 import android.view.Display;
 import android.view.Surface;
@@ -25,11 +29,13 @@ import com.mopub.common.CreativeOrientation;
 import com.mopub.common.Preconditions;
 import com.mopub.common.logging.MoPubLog;
 
+
 import java.io.File;
 import java.net.SocketException;
 
 import static android.Manifest.permission.ACCESS_NETWORK_STATE;
 import static android.Manifest.permission.INTERNET;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 import static com.mopub.common.util.Reflection.MethodBuilder;
 
 public class DeviceUtils {
@@ -102,7 +108,7 @@ public class DeviceUtils {
                 memoryClass = (Integer) new MethodBuilder(activityManager, "getLargeMemoryClass").execute();
             }
         } catch (Exception e) {
-            MoPubLog.d("Unable to reflectively determine large heap size.");
+            MoPubLog.log(CUSTOM, "Unable to reflectively determine large heap size.");
         }
 
         long result = Math.min(MAX_MEMORY_CACHE_SIZE, memoryClass / 8 * 1024 * 1024);
@@ -116,7 +122,7 @@ public class DeviceUtils {
             long availableBytes = ((long) statFs.getBlockCount()) * statFs.getBlockSize();
             size = availableBytes / 50;
         } catch (IllegalArgumentException e) {
-            MoPubLog.d("Unable to calculate 2% of available disk space, defaulting to minimum");
+            MoPubLog.log(CUSTOM, "Unable to calculate 2% of available disk space, defaulting to minimum");
         }
 
         // Bound inside min/max size for disk cache.
@@ -158,7 +164,7 @@ public class DeviceUtils {
                     return ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
             }
         } else {
-            MoPubLog.d("Unknown screen orientation. Defaulting to portrait.");
+            MoPubLog.log(CUSTOM, "Unknown screen orientation. Defaulting to portrait.");
             return ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT;
         }
     }
@@ -230,7 +236,7 @@ public class DeviceUtils {
             } catch (Exception e) {
                 // Best effort. If this fails, just get the height and width normally,
                 // which may not capture the pixels used in the notification bar.
-                MoPubLog.v("Display#getRawWidth/Height failed.", e);
+                MoPubLog.log(CUSTOM, "Display#getRawWidth/Height failed.", e);
             }
         }
 

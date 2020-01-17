@@ -1,20 +1,21 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.network;
 
 import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.common.util.ResponseHeader;
-import com.mopub.mobileads.BuildConfig;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.annotation.Config;
 
 import static org.fest.assertions.api.Assertions.assertThat;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class HeaderUtilsTest {
     private JSONObject subject;
 
@@ -90,5 +91,17 @@ public class HeaderUtilsTest {
 
         subject.put(ResponseHeader.HEIGHT.getKey(), "a%");
         assertThat(HeaderUtils.extractPercentHeader(subject, ResponseHeader.HEIGHT)).isNull();
+    }
+
+    @Test
+    public void extractJsonObjectHeader_shouldReturnJsonObject() throws JSONException {
+        JSONObject testObject = new JSONObject();
+
+        subject.put(ResponseHeader.IMPRESSION_DATA.getKey(), testObject);
+        assertThat(HeaderUtils.extractJsonObjectHeader(subject, ResponseHeader.IMPRESSION_DATA)).isEqualTo(testObject);
+        assertThat(HeaderUtils.extractJsonObjectHeader(null, ResponseHeader.IMPRESSION_DATA)).isNull();
+
+        subject.remove(ResponseHeader.IMPRESSION_DATA.getKey());
+        assertThat(HeaderUtils.extractJsonObjectHeader(subject, ResponseHeader.IMPRESSION_DATA)).isNull();
     }
 }

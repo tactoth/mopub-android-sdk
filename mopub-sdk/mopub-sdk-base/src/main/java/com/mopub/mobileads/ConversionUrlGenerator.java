@@ -1,8 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.BaseUrlGenerator;
 import com.mopub.common.ClientMetadata;
@@ -76,6 +80,8 @@ class ConversionUrlGenerator extends BaseUrlGenerator {
             addParam(SESSION_TRACKER_KEY, true);
         }
         addParam(SDK_VERSION_KEY, MoPub.SDK_VERSION);
+        appendAppEngineInfo();
+        appendWrapperVersion();
         addParam(CURRENT_CONSENT_STATUS_KEY, mCurrentConsentStatus);
         addParam(CONSENTED_VENDOR_LIST_VERSION_KEY, mConsentedVendorListVersion);
         addParam(CONSENTED_PRIVACY_POLICY_VERSION_KEY, mConsentedPrivacyPolicyVersion);

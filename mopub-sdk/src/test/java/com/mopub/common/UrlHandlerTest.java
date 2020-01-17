@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.app.Activity;
@@ -5,10 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.mopub.common.test.support.SdkTestRunner;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.network.MoPubRequestQueue;
 import com.mopub.network.Networking;
 
@@ -17,7 +20,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowApplication;
 
 import java.net.URISyntaxException;
@@ -41,7 +43,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.robolectric.Shadows.shadowOf;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class UrlHandlerTest {
     private Context context;
     @Mock private UrlHandler.ResultActions mockResultActions;

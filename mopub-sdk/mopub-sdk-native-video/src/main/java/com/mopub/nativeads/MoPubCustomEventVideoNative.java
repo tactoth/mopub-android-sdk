@@ -1,10 +1,14 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.media.AudioManager;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 import android.view.TextureView;
 import android.view.View;
@@ -14,6 +18,7 @@ import com.mopub.common.Preconditions;
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.util.Utils;
+import com.mopub.common.VisibilityTracker;
 import com.mopub.mobileads.MraidVideoPlayerActivity;
 import com.mopub.mobileads.VastManager;
 import com.mopub.mobileads.VastTracker;
@@ -45,10 +50,22 @@ import static com.mopub.common.DataKeys.MAX_BUFFER_MS;
 import static com.mopub.common.DataKeys.PAUSE_VISIBLE_PERCENT;
 import static com.mopub.common.DataKeys.PLAY_VISIBLE_PERCENT;
 import static com.mopub.common.DataKeys.VIDEO_TRACKERS_KEY;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.CLICKED;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.CUSTOM;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.CUSTOM_WITH_THROWABLE;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.LOAD_ATTEMPTED;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.LOAD_FAILED;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.LOAD_SUCCESS;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.SHOW_ATTEMPTED;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.SHOW_FAILED;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.SHOW_SUCCESS;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.WILL_LEAVE_APPLICATION;
 import static com.mopub.nativeads.NativeImageHelper.preCacheImages;
 import static com.mopub.nativeads.NativeVideoController.VisibilityTrackingEvent;
 
 public class MoPubCustomEventVideoNative extends CustomEventNative {
+    public static final String ADAPTER_NAME = MoPubCustomEventVideoNative.class.getSimpleName();
+
     private MoPubVideoNativeAd videoNativeAd;
     @Override
     protected void loadNativeAd(@NonNull final Context context,
@@ -58,6 +75,9 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
         final Object json = localExtras.get(JSON_BODY_KEY);
         // null or non-JSONObjects should not be passed in localExtras as JSON_BODY_KEY
         if (!(json instanceof JSONObject)) {
+            MoPubLog.log(LOAD_FAILED, ADAPTER_NAME,
+                    NativeErrorCode.INVALID_RESPONSE.getIntCode(),
+                    NativeErrorCode.INVALID_RESPONSE);
             customEventNativeListener.onNativeAdFailed(NativeErrorCode.INVALID_RESPONSE);
             return;
         }
@@ -66,6 +86,9 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
 
         final VideoResponseHeaders videoResponseHeaders = new VideoResponseHeaders(serverExtras);
         if (!videoResponseHeaders.hasValidHeaders()) {
+            MoPubLog.log(LOAD_FAILED, ADAPTER_NAME,
+                    NativeErrorCode.INVALID_RESPONSE.getIntCode(),
+                    NativeErrorCode.INVALID_RESPONSE);
             customEventNativeListener.onNativeAdFailed(NativeErrorCode.INVALID_RESPONSE);
             return;
         }
@@ -75,6 +98,9 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
         // Ensure click tracking url is a non-empty String
         if (!(clickTrackingUrlFromHeaderObject instanceof String) ||
                 TextUtils.isEmpty((String) clickTrackingUrlFromHeaderObject)) {
+            MoPubLog.log(LOAD_FAILED, ADAPTER_NAME,
+                    NativeErrorCode.UNSPECIFIED.getIntCode(),
+                    NativeErrorCode.UNSPECIFIED);
             customEventNativeListener.onNativeAdFailed(NativeErrorCode.UNSPECIFIED);
             return;
         }
@@ -86,6 +112,9 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
         try {
             videoNativeAd.loadAd();
         } catch (IllegalArgumentException e) {
+            MoPubLog.log(LOAD_FAILED, ADAPTER_NAME,
+                    NativeErrorCode.UNSPECIFIED.getIntCode(),
+                    NativeErrorCode.UNSPECIFIED);
             customEventNativeListener.onNativeAdFailed(NativeErrorCode.UNSPECIFIED);
         }
     }
@@ -249,6 +278,7 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
         }
 
         void loadAd() throws IllegalArgumentException {
+            MoPubLog.log(LOAD_ATTEMPTED, ADAPTER_NAME);
             if (!containsRequiredKeys(mJsonObject)) {
                 throw new IllegalArgumentException("JSONObject did not contain required keys.");
             }
@@ -276,6 +306,7 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
             preCacheImages(mContext, getAllImageUrls(), new NativeImageHelper.ImageListener() {
                 @Override
                 public void onImagesCached() {
+                    MoPubLog.log(LOAD_SUCCESS, ADAPTER_NAME);
                     if(isInvalidated()) {
                         return;
                     }
@@ -290,6 +321,9 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
                     if(isInvalidated()) {
                         return;
                     }
+                    MoPubLog.log(LOAD_FAILED, ADAPTER_NAME,
+                            errorCode.getIntCode(),
+                            errorCode);
                     mCustomEventNativeListener.onNativeAdFailed(errorCode);
                 }
             });
@@ -298,6 +332,9 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
         @Override
         public void onVastVideoConfigurationPrepared(@Nullable VastVideoConfig vastVideoConfig) {
             if (vastVideoConfig == null) {
+                MoPubLog.log(LOAD_FAILED, ADAPTER_NAME,
+                        NativeErrorCode.INVALID_RESPONSE.getIntCode(),
+                        NativeErrorCode.INVALID_RESPONSE);
                 mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.INVALID_RESPONSE);
                 return;
             }
@@ -368,6 +405,7 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
             mNativeVideoController = mNativeVideoControllerFactory.createForId(
                     mId, mContext, visibilityTrackingEvents, mVastVideoConfig);
 
+            MoPubLog.log(LOAD_SUCCESS, ADAPTER_NAME);
             mCustomEventNativeListener.onNativeAdLoaded(this);
 
             // Internal Video Trackers
@@ -430,12 +468,12 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
                         setPrivacyInformationIconClickThroughUrl((String) value);
                         break;
                     default:
-                        MoPubLog.d("Unable to add JSON key to internal mapping: " + key.mName);
+                        MoPubLog.log(CUSTOM, "Unable to add JSON key to internal mapping: " + key.mName);
                         break;
                 }
             } catch (ClassCastException e) {
                 if (!key.mRequired) {
-                    MoPubLog.d("Ignoring class cast exception for optional key: " + key.mName);
+                    MoPubLog.log(CUSTOM, "Ignoring class cast exception for optional key: " + key.mName);
                 } else {
                     throw e;
                 }
@@ -452,6 +490,7 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
 
         @Override
         public void render(@NonNull MediaLayout mediaLayout) {
+            MoPubLog.log(SHOW_ATTEMPTED, ADAPTER_NAME);
             Preconditions.checkNotNull(mediaLayout);
 
             mVideoVisibleTracking.addView(mRootView,
@@ -490,6 +529,9 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
 
                     mNeedsSeek = true;
                     maybeChangeState();
+                    if (mVideoState == VideoState.PLAYING || mVideoState == VideoState.PLAYING_MUTED) {
+                        MoPubLog.log(SHOW_SUCCESS, ADAPTER_NAME);
+                    }
                 }
 
                 @Override
@@ -529,6 +571,7 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
             mMediaLayout.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(final View v) {
+                    MoPubLog.log(CLICKED, ADAPTER_NAME);
                     prepareToLeaveView();
                     mNativeVideoController.triggerImpressionTrackers();
                     MraidVideoPlayerActivity.startNativeVideo(mContext, mId, mVastVideoConfig);
@@ -583,7 +626,9 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
 
         @Override
         public void onError(final Exception e) {
-            MoPubLog.w("Error playing back video.", e);
+            MoPubLog.log(SHOW_FAILED, ADAPTER_NAME,
+                    NativeErrorCode.UNSPECIFIED.getIntCode(),
+                    NativeErrorCode.UNSPECIFIED);
             mError = true;
             maybeChangeState();
         }
@@ -625,6 +670,7 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
         }
 
         private void prepareToLeaveView() {
+            MoPubLog.log(WILL_LEAVE_APPLICATION, ADAPTER_NAME);
             mNeedsSeek = true;
             mNeedsPrepare = true;
 
@@ -943,14 +989,14 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
                 try {
                     mImpressionVisiblePx = Integer.parseInt(impressionVisiblePxString);
                 } catch (NumberFormatException e) {
-                    MoPubLog.d("Unable to parse impression min visible px from server extras.");
+                    MoPubLog.log(CUSTOM, "Unable to parse impression min visible px from server extras.");
                 }
             }
             try {
                 mImpressionMinVisiblePercent =
                         Integer.parseInt(serverExtras.get(IMPRESSION_MIN_VISIBLE_PERCENT));
             } catch (NumberFormatException e) {
-                MoPubLog.d("Unable to parse impression min visible percent from server extras.");
+                MoPubLog.log(CUSTOM, "Unable to parse impression min visible percent from server extras.");
                 if (mImpressionVisiblePx == null || mImpressionVisiblePx < 0) {
                     mHeadersAreValid = false;
                 }
@@ -965,7 +1011,7 @@ public class MoPubCustomEventVideoNative extends CustomEventNative {
             try {
                 mVideoTrackers = new JSONObject(videoTrackers);
             } catch (JSONException e) {
-                MoPubLog.d("Failed to parse video trackers to JSON: " + videoTrackers, e);
+                MoPubLog.log(CUSTOM_WITH_THROWABLE, "Failed to parse video trackers to JSON: " + videoTrackers, e);
                 mVideoTrackers = null;
             }
         }

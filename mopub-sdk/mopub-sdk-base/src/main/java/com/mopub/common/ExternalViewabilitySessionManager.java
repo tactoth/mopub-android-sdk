@@ -1,9 +1,13 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.app.Activity;
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.view.View;
 import android.webkit.WebView;
 
@@ -13,6 +17,8 @@ import com.mopub.mobileads.VastVideoConfig;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * Encapsulates all third-party viewability session measurements.
@@ -37,10 +43,10 @@ public class ExternalViewabilitySessionManager {
                     MoatViewabilitySession.disable();
                     break;
                 default:
-                    MoPubLog.d("Attempted to disable an invalid viewability vendor: " + this);
+                    MoPubLog.log(CUSTOM, "Attempted to disable an invalid viewability vendor: " + this);
                     return;
             }
-            MoPubLog.d("Disabled viewability for " + this);
+            MoPubLog.log(CUSTOM, "Disabled viewability for " + this);
         }
 
         /**
@@ -256,9 +262,7 @@ public class ExternalViewabilitySessionManager {
         final String message = String.format(Locale.US, "%s viewability event: %s%s.",
                 session.getName(), failureString, event);
         if (isVerbose) {
-            MoPubLog.v(message);
-        } else {
-            MoPubLog.d(message);
+            MoPubLog.log(CUSTOM, message);
         }
     }
 }

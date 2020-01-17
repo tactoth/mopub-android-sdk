@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.app.Activity;
@@ -9,7 +13,6 @@ import android.telephony.TelephonyManager;
 import com.mopub.common.privacy.MoPubIdentifierTest;
 import com.mopub.common.privacy.PersonalInfoManager;
 import com.mopub.common.test.support.SdkTestRunner;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.mobileads.test.support.MoPubShadowTelephonyManager;
 import com.mopub.common.util.Reflection;
 
@@ -28,8 +31,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class,
-        shadows = {MoPubShadowTelephonyManager.class})
+@Config(shadows = {MoPubShadowTelephonyManager.class})
 public class ClientMetadataTest {
 
     private Activity activityContext;

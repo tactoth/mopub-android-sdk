@@ -1,9 +1,17 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
-import android.support.annotation.NonNull;
+import android.os.Build;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import android.text.TextUtils;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -12,10 +20,13 @@ import com.mopub.common.logging.MoPubLog;
 import java.util.EnumSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 import static com.mopub.common.util.Drawables.LEFT_ARROW;
 import static com.mopub.common.util.Drawables.RIGHT_ARROW;
 import static com.mopub.common.util.Drawables.UNLEFT_ARROW;
 import static com.mopub.common.util.Drawables.UNRIGHT_ARROW;
+import static com.mopub.mobileads.MoPubErrorCode.RENDER_PROCESS_GONE_UNSPECIFIED;
+import static com.mopub.mobileads.MoPubErrorCode.RENDER_PROCESS_GONE_WITH_CRASH;
 
 class BrowserWebViewClient extends WebViewClient {
 
@@ -40,7 +51,7 @@ class BrowserWebViewClient extends WebViewClient {
     @Override
     public void onReceivedError(WebView view, int errorCode, String description,
             String failingUrl) {
-        MoPubLog.d("MoPubBrowser error: " + description);
+        MoPubLog.log(CUSTOM, "MoPubBrowser error: " + description);
     }
 
     @Override
@@ -100,5 +111,15 @@ class BrowserWebViewClient extends WebViewClient {
                 ? RIGHT_ARROW.createDrawable(mMoPubBrowser)
                 : UNRIGHT_ARROW.createDrawable(mMoPubBrowser);
         mMoPubBrowser.getForwardButton().setImageDrawable(forwardImageDrawable);
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    @Override
+    public boolean onRenderProcessGone(@Nullable final WebView view, @Nullable final RenderProcessGoneDetail detail) {
+        MoPubLog.log(CUSTOM, (detail != null && detail.didCrash())
+                ? RENDER_PROCESS_GONE_WITH_CRASH
+                : RENDER_PROCESS_GONE_UNSPECIFIED);
+        mMoPubBrowser.finish();
+        return true;
     }
 }

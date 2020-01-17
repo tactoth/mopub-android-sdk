@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
@@ -7,6 +11,8 @@ import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.common.util.ResponseHeader;
 import com.mopub.network.AdLoader;
 import com.mopub.network.AdResponse;
+import com.mopub.network.ImpressionListener;
+import com.mopub.network.ImpressionsEmitter;
 import com.mopub.network.MoPubNetworkError;
 import com.mopub.network.MoPubRequestQueue;
 import com.mopub.network.MultiAdRequest;
@@ -27,17 +33,16 @@ import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import java.lang.reflect.Field;
 
 import static org.fest.assertions.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class AdLoaderRewardedVideoTest {
 
     @Mock
@@ -146,6 +151,29 @@ public class AdLoaderRewardedVideoTest {
     }
 
     @Test
+    public void trackImpression_shouldMakeImpressionDataCall() throws JSONException, MoPubNetworkError, NoSuchFieldException, IllegalAccessException {
+        JSONObject serverJson = createAdResponseJson();
+        byte[] body = serverJson.toString().getBytes();
+        NetworkResponse testResponse = new NetworkResponse(body);
+        MultiAdResponse multiAdResponse = new MultiAdResponse(activity, testResponse, AdFormat.BANNER, adUnitId);
+
+        // set subject MultiAdResponse
+        Field field = getPrivateField("mMultiAdResponse");
+        field.set(subject, multiAdResponse);
+
+        // validation for basic AdLoader
+        assertThat(subject.hasMoreAds()).isTrue();
+        subject.loadNextAd(null);
+
+        ImpressionListener listener = mock(ImpressionListener.class);
+        ImpressionsEmitter.addListener(listener);
+        // call tracking
+        subject.trackImpression(activity);
+
+        verify(listener).onImpression(adUnitId, null);
+    }
+
+    @Test
     public void trackImpression_withImpressionTrackingUrlsList_shouldIgnoreSingleImpressionUrl_shouldFireListOfImpressionUrls() throws JSONException, MoPubNetworkError, NoSuchFieldException, IllegalAccessException {
         final JSONObject serverJson = createAdResponseJson();
         serverJson.getJSONArray("ad-responses").getJSONObject(0).getJSONObject("metadata").put(
@@ -223,7 +251,6 @@ public class AdLoaderRewardedVideoTest {
                 "        \"x-creativeid\": \"4652bd83d89a40c5a4e276dbf101499f\",\n" +
                 "        \"x-custom-event-class-data\": \"\",\n" +
                 "        \"x-custom-event-class-name\": \"\",\n" +
-                "        \"x-customselector\": \"\",\n" +
                 "        \"x-disable-viewability\": 3,\n" +
                 "        \"x-dspcreativeid\": \"\",\n" +
                 "        \"x-format\": \"\",\n" +
@@ -231,7 +258,6 @@ public class AdLoaderRewardedVideoTest {
                 "        \"x-height\": -1,\n" +
                 "        \"x-imptracker\": \"impression_tracking_url\",\n" +
                 "        \"x-interceptlinks\": \"\",\n" +
-                "        \"x-launchpage\": \"\",\n" +
                 "        \"x-nativeparams\": \"\",\n" +
                 "        \"x-networktype\": \"\",\n" +
                 "        \"x-orientation\": \"l\",\n" +
@@ -243,7 +269,6 @@ public class AdLoaderRewardedVideoTest {
                 "        \"x-rewarded-video-completion-url\": \"\",\n" +
                 "        \"x-rewarded-video-currency-amount\": 10,\n" +
                 "        \"x-rewarded-video-currency-name\": \"Coins\",\n" +
-                "        \"x-scrollable\": \"\",\n" +
                 "        \"x-vastvideoplayer\": \"\",\n" +
                 "        \"x-video-trackers\": \"\",\n" +
                 "        \"x-video-viewability-trackers\": \"\",\n" +

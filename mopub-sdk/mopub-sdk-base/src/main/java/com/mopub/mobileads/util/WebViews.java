@@ -1,7 +1,11 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads.util;
 
 import android.os.Build;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.webkit.CookieManager;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
@@ -10,7 +14,10 @@ import android.webkit.WebView;
 
 import com.mopub.common.MoPub;
 import com.mopub.common.Preconditions;
+
 import com.mopub.common.logging.MoPubLog;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 public class WebViews {
     public static void onPause(@NonNull final WebView webView, boolean isFinishing) {
@@ -32,7 +39,7 @@ public class WebViews {
             @Override
             public boolean onJsAlert(@NonNull final WebView view, @NonNull final String url,
                     @NonNull final String message, @NonNull final JsResult result) {
-                MoPubLog.d(message);
+                MoPubLog.log(CUSTOM, message);
                 result.confirm();
                 return true;
             }
@@ -40,7 +47,7 @@ public class WebViews {
             @Override
             public boolean onJsConfirm(@NonNull final WebView view, @NonNull final String url,
                     @NonNull final String message, @NonNull final JsResult result) {
-                MoPubLog.d(message);
+                MoPubLog.log(CUSTOM, message);
                 result.confirm();
                 return true;
             }
@@ -49,7 +56,7 @@ public class WebViews {
             public boolean onJsPrompt(@NonNull final WebView view, @NonNull final String url,
                     @NonNull final String message, @NonNull final String defaultValue,
                     @NonNull final JsPromptResult result) {
-                MoPubLog.d(message);
+                MoPubLog.log(CUSTOM, message);
                 result.confirm();
                 return true;
             }
@@ -57,7 +64,7 @@ public class WebViews {
             @Override
             public boolean onJsBeforeUnload(@NonNull final WebView view, @NonNull final String url,
                     @NonNull final String message, @NonNull final JsResult result) {
-                MoPubLog.d(message);
+                MoPubLog.log(CUSTOM, message);
                 result.confirm();
                 return true;
             }

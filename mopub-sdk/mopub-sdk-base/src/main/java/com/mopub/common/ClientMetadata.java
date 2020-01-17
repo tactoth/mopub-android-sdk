@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.annotation.SuppressLint;
@@ -12,8 +16,8 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.os.Build;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.telephony.TelephonyManager;
 
 import com.mopub.common.logging.MoPubLog;
@@ -26,6 +30,7 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import static android.content.pm.PackageManager.NameNotFoundException;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * Singleton that caches Client objects so they will be available to background threads.
@@ -100,7 +105,7 @@ public class ClientMetadata {
      * Returns the singleton ClientMetadata object, using the context to obtain data if necessary.
      */
     @NonNull
-    public static ClientMetadata getInstance(Context context) {
+    public static ClientMetadata getInstance(@NonNull final Context context) {
         // Use a local variable so we can reduce accesses of the volatile field.
         ClientMetadata result = sInstance;
         if (result == null) {
@@ -133,8 +138,9 @@ public class ClientMetadata {
         return result;
     }
 
-    // NEVER CALL THIS AS A USER. Get it from the Singletons class.
-    public ClientMetadata(Context context) {
+    private ClientMetadata(@NonNull final Context context) {
+        Preconditions.checkNotNull(context);
+
         mContext = context.getApplicationContext();
         mConnectivityManager =
                 (ConnectivityManager) mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -149,7 +155,7 @@ public class ClientMetadata {
         mAppVersion = getAppVersionFromContext(mContext);
         PackageManager packageManager = mContext.getPackageManager();
         ApplicationInfo applicationInfo = null;
-        mAppPackageName = context.getPackageName();
+        mAppPackageName = mContext.getPackageName();
         try {
             applicationInfo = packageManager.getApplicationInfo(mAppPackageName, 0);
         } catch (final NameNotFoundException e) {
@@ -208,7 +214,7 @@ public class ClientMetadata {
                     context.getPackageManager().getPackageInfo(packageName, 0);
             return packageInfo.versionName;
         } catch (Exception exception) {
-            MoPubLog.d("Failed to retrieve PackageInfo#versionName.");
+            MoPubLog.log(CUSTOM, "Failed to retrieve PackageInfo#versionName.");
             return null;
         }
     }

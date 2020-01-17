@@ -1,10 +1,14 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.mopub.common.MoPubBrowser;
@@ -18,6 +22,7 @@ import com.mopub.exceptions.IntentNotResolvableException;
 import java.io.Serializable;
 import java.util.List;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 import static com.mopub.network.TrackingRequest.makeVastTrackingHttpRequest;
 
 /**
@@ -168,7 +173,7 @@ class VastIconConfig implements Serializable {
                             try {
                                 Intents.startActivity(context, intent);
                             } catch (IntentNotResolvableException e) {
-                                MoPubLog.d(e.getMessage());
+                                MoPubLog.log(CUSTOM, e.getMessage());
                             }
                         }
                     }

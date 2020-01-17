@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.network;
 
 import android.net.Uri;
@@ -15,6 +19,7 @@ import com.mopub.volley.toolbox.HurlStack;
 public class PlayServicesUrlRewriter implements HurlStack.UrlRewriter {
     public static final String UDID_TEMPLATE = "mp_tmpl_advertising_id";
     public static final String DO_NOT_TRACK_TEMPLATE = "mp_tmpl_do_not_track";
+    public static final String MOPUB_ID_TEMPLATE = "mp_tmpl_mopub_id";
 
     public PlayServicesUrlRewriter() {
     }
@@ -34,6 +39,7 @@ public class PlayServicesUrlRewriter implements HurlStack.UrlRewriter {
         String toReturn = url.replace(UDID_TEMPLATE,
                 Uri.encode(info.getIdWithPrefix(MoPub.canCollectPersonalInformation())));
         toReturn = toReturn.replace(DO_NOT_TRACK_TEMPLATE, info.isDoNotTrack() ? "1" : "0");
+        toReturn = toReturn.replace(MOPUB_ID_TEMPLATE,  Uri.encode(info.getIdentifier(false)));
         return toReturn;
     }
 }

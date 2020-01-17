@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
@@ -5,8 +9,8 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.mopub.common.MoPubBrowser;
@@ -19,6 +23,7 @@ import com.mopub.common.util.Intents;
 import java.io.Serializable;
 import java.util.List;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 import static com.mopub.network.TrackingRequest.makeVastTrackingHttpRequest;
 
 public class VastCompanionAdConfig implements Serializable {
@@ -167,7 +172,7 @@ public class VastCompanionAdConfig implements Serializable {
                             try {
                                 ((Activity) context).startActivityForResult(intent, requestCode);
                             } catch (ActivityNotFoundException e) {
-                                MoPubLog.d("Activity " + clazz.getName() + " not found. Did you " +
+                                MoPubLog.log(CUSTOM, "Activity " + clazz.getName() + " not found. Did you " +
                                         "declare it in your AndroidManifest.xml?");
                             }
                         }

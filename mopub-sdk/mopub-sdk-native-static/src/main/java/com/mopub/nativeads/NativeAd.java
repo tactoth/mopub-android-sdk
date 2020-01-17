@@ -1,14 +1,20 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.mopub.common.VisibleForTesting;
 import com.mopub.nativeads.MoPubCustomEventNative.MoPubStaticNativeAd;
 import com.mopub.network.AdResponse;
+import com.mopub.network.ImpressionData;
+import com.mopub.network.SingleImpression;
 import com.mopub.network.TrackingRequest;
 
 import java.util.HashSet;
@@ -54,6 +60,7 @@ public class NativeAd {
     @NonNull private final Set<String> mImpressionTrackers;
     @NonNull private final Set<String> mClickTrackers;
     @NonNull private final String mAdUnitId;
+    @Nullable private ImpressionData mImpressionData;
     @Nullable private MoPubNativeEventListener mMoPubNativeEventListener;
 
     @NonNull private MoPubAdRenderer mMoPubAdRenderer;
@@ -71,6 +78,7 @@ public class NativeAd {
         mContext = context.getApplicationContext();
 
         mAdUnitId = adUnitId;
+        mImpressionData = null;
 
         mImpressionTrackers = new HashSet<String>();
         mImpressionTrackers.addAll(moPubImpressionTrackerUrls);
@@ -98,6 +106,15 @@ public class NativeAd {
 
     public void setMoPubAdRenderer(@NonNull MoPubAdRenderer moPubAdRenderer) {
         this.mMoPubAdRenderer = moPubAdRenderer;
+    }
+    
+    NativeAd(@NonNull final Context context,
+             @NonNull final AdResponse adResponse,
+             @NonNull final String adUnitId,
+             @NonNull final BaseNativeAd baseNativeAd,
+             @NonNull final MoPubAdRenderer moPubAdRenderer){
+        this(context, adResponse.getImpressionTrackingUrls(), adResponse.getClickTrackingUrl(), adUnitId, baseNativeAd, moPubAdRenderer);
+        mImpressionData = adResponse.getImpressionData();
     }
 
     @Override
@@ -162,7 +179,7 @@ public class NativeAd {
     // Lifecycle Handlers
 
     /**
-     * Prepares the {@link NativeAd} to be seen on screen. You should call this method after calling
+     * Prepares the {@link NativeAd} to be seen on screen. You should call this method before calling
      * {@link #renderAdView(View)} with the same {@link View} and before the ad is shown on-screen.
      * This method is commonly used to initialize impression tracking and other state associated
      * with the {@link View}.
@@ -208,12 +225,14 @@ public class NativeAd {
             return;
         }
 
+        mRecordedImpression = true;
+
         TrackingRequest.makeTrackingHttpRequest(mImpressionTrackers, mContext);
         if (mMoPubNativeEventListener != null) {
             mMoPubNativeEventListener.onImpression(view);
         }
 
-        mRecordedImpression = true;
+        new SingleImpression(mAdUnitId, mImpressionData).sendImpression();
     }
 
     @VisibleForTesting

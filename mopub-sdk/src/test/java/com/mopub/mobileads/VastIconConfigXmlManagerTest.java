@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import com.mopub.common.test.support.SdkTestRunner;
@@ -6,14 +10,12 @@ import com.mopub.mobileads.test.support.VastUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.annotation.Config;
 import org.w3c.dom.Node;
 
 import static com.mopub.mobileads.test.support.VastUtils.createNode;
 import static org.fest.assertions.api.Assertions.assertThat;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class VastIconConfigXmlManagerTest {
 
     private VastIconXmlManager subject;

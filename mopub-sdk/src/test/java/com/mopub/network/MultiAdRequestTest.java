@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.network;
 
 
@@ -7,7 +11,6 @@ import com.mopub.common.AdFormat;
 import com.mopub.common.MoPub;
 import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.common.util.ResponseHeader;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.volley.NetworkResponse;
 import com.mopub.volley.Response;
 
@@ -20,7 +23,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,7 +34,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class MultiAdRequestTest {
     private static final String ACCEPT_LANGUAGE = "accept-language";
 
@@ -62,7 +63,6 @@ public class MultiAdRequestTest {
                     "x-creativeid": "d06f9bde98134f76931cdf04951b60dd",
                     "x-custom-event-class-data": "",
                     "x-custom-event-class-name": "",
-                    "x-customselector": "",
                     "x-disable-viewability": 3,
                     "x-dspcreativeid": "",
                     "x-format": "",
@@ -72,7 +72,6 @@ public class MultiAdRequestTest {
                     "x-before-load-url": "before_load_url",
                     "x-after-load-url": "after_load_url",
                     "x-interceptlinks": "",
-                    "x-launchpage": "",
                     "x-nativeparams": "",
                     "x-networktype": "",
                     "x-orientation": "",
@@ -82,7 +81,6 @@ public class MultiAdRequestTest {
                     "x-rewarded-video-completion-url": "",
                     "x-rewarded-video-currency-amount": -1,
                     "x-rewarded-video-currency-name": "",
-                    "x-scrollable": "",
                     "x-vastvideoplayer": "",
                     "x-video-trackers": "",
                     "x-video-viewability-trackers": "",

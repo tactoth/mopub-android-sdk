@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
@@ -6,19 +10,25 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 
+import com.mopub.common.CreativeOrientation;
 import com.mopub.common.IntentActions;
 import com.mopub.common.logging.MoPubLog;
+import com.mopub.common.util.DeviceUtils;
 import com.mopub.common.util.Intents;
 import com.mopub.common.util.Reflection;
 import com.mopub.mraid.MraidVideoViewController;
 
+import java.io.Serializable;
+
 import static com.mopub.common.DataKeys.BROADCAST_IDENTIFIER_KEY;
+import static com.mopub.common.DataKeys.CREATIVE_ORIENTATION_KEY;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 import static com.mopub.mobileads.BaseBroadcastReceiver.broadcastAction;
 
 public class MraidVideoPlayerActivity extends BaseVideoPlayerActivity implements BaseVideoViewController.BaseVideoViewControllerListener {
@@ -47,6 +57,14 @@ public class MraidVideoPlayerActivity extends BaseVideoPlayerActivity implements
             finish();
             return;
         }
+
+        final Serializable orientationExtra = getIntent().getSerializableExtra(
+                CREATIVE_ORIENTATION_KEY);
+        CreativeOrientation requestedOrientation = CreativeOrientation.DEVICE;
+        if (orientationExtra instanceof CreativeOrientation) {
+            requestedOrientation = (CreativeOrientation) orientationExtra;
+        }
+        DeviceUtils.lockOrientation(this, requestedOrientation);
 
         mBaseVideoController.onCreate();
     }
@@ -168,7 +186,7 @@ public class MraidVideoPlayerActivity extends BaseVideoPlayerActivity implements
         try {
             startActivityForResult(intent, requestCode);
         } catch (ActivityNotFoundException e) {
-            MoPubLog.d("Activity " + clazz.getName() + " not found. Did you declare it in your AndroidManifest.xml?");
+            MoPubLog.log(CUSTOM, "Activity " + clazz.getName() + " not found. Did you declare it in your AndroidManifest.xml?");
         }
     }
 

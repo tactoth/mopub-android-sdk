@@ -1,8 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.LifecycleListener;
 import com.mopub.common.MoPubLifecycleManager;
@@ -10,6 +14,8 @@ import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
 
 import java.util.Map;
+
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.CUSTOM;
 
 /**
  * The base class when dealing with rewarded formats.
@@ -44,7 +50,7 @@ public abstract class CustomEventRewardedAd {
             }
             loadWithSdkInitialized(launcherActivity, localExtras, serverExtras);
         } catch (Exception e) {
-            MoPubLog.e(e.getMessage());
+            MoPubLog.log(CUSTOM, e.getMessage());
         }
     }
 

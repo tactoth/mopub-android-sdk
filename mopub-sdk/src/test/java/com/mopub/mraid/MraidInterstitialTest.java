@@ -1,10 +1,15 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mraid;
 
 import android.app.Activity;
 import android.content.Intent;
 
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import com.mopub.common.test.support.SdkTestRunner;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.mobileads.ResponseBodyInterstitialTest;
 
 import org.junit.Before;
@@ -14,19 +19,17 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
 import org.robolectric.Shadows;
-import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowActivity;
-import org.robolectric.shadows.support.v4.ShadowLocalBroadcastManager;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static com.mopub.common.DataKeys.BROADCAST_IDENTIFIER_KEY;
 import static com.mopub.common.DataKeys.HTML_RESPONSE_BODY_KEY;
-import static com.mopub.mobileads.CustomEventInterstitial.CustomEventInterstitialListener;
 import static com.mopub.common.IntentActions.ACTION_INTERSTITIAL_CLICK;
 import static com.mopub.common.IntentActions.ACTION_INTERSTITIAL_DISMISS;
 import static com.mopub.common.IntentActions.ACTION_INTERSTITIAL_SHOW;
+import static com.mopub.mobileads.CustomEventInterstitial.CustomEventInterstitialListener;
 import static com.mopub.mobileads.EventForwardingBroadcastReceiverTest.getIntentForActionAndIdentifier;
 import static com.mopub.mobileads.MoPubErrorCode.NETWORK_INVALID_STATE;
 import static org.fest.assertions.api.Assertions.assertThat;
@@ -34,7 +37,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class MraidInterstitialTest extends ResponseBodyInterstitialTest {
     private static final String EXPECTED_HTML_DATA = "<html></html>";
     private long broadcastIdentifier;
@@ -86,17 +88,17 @@ public class MraidInterstitialTest extends ResponseBodyInterstitialTest {
 
         Intent intent =
                 getIntentForActionAndIdentifier(ACTION_INTERSTITIAL_SHOW, broadcastIdentifier);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener).onInterstitialShown();
 
         intent = getIntentForActionAndIdentifier(ACTION_INTERSTITIAL_CLICK, broadcastIdentifier);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener).onInterstitialClicked();
 
         intent = getIntentForActionAndIdentifier(ACTION_INTERSTITIAL_DISMISS, broadcastIdentifier);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener).onInterstitialDismissed();
     }
@@ -112,7 +114,6 @@ public class MraidInterstitialTest extends ResponseBodyInterstitialTest {
 
         assertThat(intent.getComponent().getClassName())
                 .isEqualTo("com.mopub.mobileads.MraidActivity");
-        assertThat(intent.getExtras().get(HTML_RESPONSE_BODY_KEY)).isEqualTo(EXPECTED_HTML_DATA);
         assertThat(intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0);
     }
 
@@ -124,12 +125,12 @@ public class MraidInterstitialTest extends ResponseBodyInterstitialTest {
 
         Intent intent;
         intent = new Intent(ACTION_INTERSTITIAL_SHOW);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener, never()).onInterstitialShown();
 
         intent = new Intent(ACTION_INTERSTITIAL_DISMISS);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener, never()).onInterstitialDismissed();
     }

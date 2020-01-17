@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
@@ -14,7 +18,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class AdTypeTranslatorTest {
     private String customEventName;
     private MoPubView moPubView;
@@ -56,20 +58,6 @@ public class AdTypeTranslatorTest {
         customEventName = AdTypeTranslator.getCustomEventName(AdFormat.BANNER, "interstitial", "admob_full", headers);
 
         assertThat(customEventName).isEqualTo("com.mopub.mobileads.GooglePlayServicesInterstitial");
-    }
-
-    @Test
-    public void getCustomEventName_shouldBeMillenialBanner() {
-        customEventName = AdTypeTranslator.getCustomEventName(AdFormat.BANNER, "millennial_native", null, headers);
-
-        assertThat(customEventName).isEqualTo("com.mopub.mobileads.MillennialBanner");
-    }
-
-    @Test
-    public void getCustomEventName_shouldBeMillennialIntersitial() {
-        customEventName = AdTypeTranslator.getCustomEventName(AdFormat.INTERSTITIAL, "interstitial", "millennial_full", headers);
-
-        assertThat(customEventName).isEqualTo("com.mopub.mobileads.MillennialInterstitial");
     }
 
     @Test
@@ -127,6 +115,13 @@ public class AdTypeTranslatorTest {
         customEventName = AdTypeTranslator.getCustomEventName(AdFormat.NATIVE, AdType.STATIC_NATIVE, null, headers);
 
         assertThat(customEventName).isEqualTo("com.mopub.nativeads.MoPubCustomEventNative");
+    }
+
+    @Test
+    public void getCustomEventName_withNativeVideoFormat_shouldBeMoPubNativeVideo() {
+        customEventName = AdTypeTranslator.getCustomEventName(AdFormat.NATIVE, AdType.VIDEO_NATIVE, null, headers);
+
+        assertThat(customEventName).isEqualTo("com.mopub.nativeads.MoPubCustomEventVideoNative");
     }
 
     @Test

@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common.util;
 
 import android.annotation.TargetApi;
@@ -8,7 +12,7 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.view.Gravity;
 import android.widget.Toast;
 
@@ -18,6 +22,8 @@ import com.mopub.common.logging.MoPubLog;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * This class maintains lists of required Activity permissions,
@@ -47,7 +53,7 @@ public class ManifestUtils {
             REQUIRED_WEB_VIEW_SDK_ACTIVITIES.add(mraidActivityClass);
             REQUIRED_WEB_VIEW_SDK_ACTIVITIES.add(rewardedMraidActivityClass);
         } catch (ClassNotFoundException e) {
-            MoPubLog.e("ManifestUtils running without interstitial module", e);
+            MoPubLog.log(CUSTOM, "ManifestUtils running without interstitial module");
         }
 
         REQUIRED_WEB_VIEW_SDK_ACTIVITIES.add(com.mopub.mobileads.MraidVideoPlayerActivity.class);
@@ -204,7 +210,7 @@ public class ManifestUtils {
         }
         stringBuilder.append("\n\nPlease update your manifest to include them.");
 
-        MoPubLog.w(stringBuilder.toString());
+        MoPubLog.log(CUSTOM, stringBuilder.toString());
     }
 
     private static void logMisconfiguredActivities(@NonNull Context context,
@@ -234,7 +240,7 @@ public class ManifestUtils {
 
         stringBuilder.append("\n\nPlease update your manifest to include them.");
 
-        MoPubLog.w(stringBuilder.toString());
+        MoPubLog.log(CUSTOM, stringBuilder.toString());
     }
 
     private static ActivityConfigChanges getActivityConfigChanges(@NonNull Context context,
@@ -261,9 +267,12 @@ public class ManifestUtils {
         if (isDebuggable(context)) {
             final String message = "ERROR: YOUR MOPUB INTEGRATION IS INCOMPLETE.\n" +
                     "Check logcat and update your AndroidManifest.xml with the correct activities and configuration.";
-            final Toast toast = Toast.makeText(context, message, Toast.LENGTH_LONG);
-            toast.setGravity(Gravity.FILL_HORIZONTAL, 0, 0);
-            toast.show();
+            final Context applicationContext = context.getApplicationContext();
+            if (applicationContext != null) {
+                final Toast toast = Toast.makeText(applicationContext, message, Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.FILL_HORIZONTAL, 0, 0);
+                toast.show();
+            }
         }
     }
 

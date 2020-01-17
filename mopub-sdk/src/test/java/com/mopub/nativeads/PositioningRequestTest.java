@@ -1,9 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.app.Activity;
 
 import com.mopub.common.test.support.SdkTestRunner;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.network.MoPubNetworkError;
 import com.mopub.volley.NetworkResponse;
 import com.mopub.volley.Response;
@@ -15,7 +18,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import java.util.TreeMap;
 
@@ -23,7 +25,6 @@ import static junit.framework.Assert.fail;
 import static org.fest.assertions.api.Assertions.assertThat;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class PositioningRequestTest {
 
     String url = "https://example.com";

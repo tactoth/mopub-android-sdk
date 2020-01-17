@@ -1,7 +1,11 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.network;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.Preconditions;
 import com.mopub.common.logging.MoPubLog;
@@ -16,6 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
+
 public class HeaderUtils {
 
     @NonNull
@@ -28,6 +34,18 @@ public class HeaderUtils {
         }
 
         return headers.optString(responseHeader.getKey());
+    }
+
+    @Nullable
+    public static JSONObject extractJsonObjectHeader(@Nullable final JSONObject headers,
+                                                     @NonNull final ResponseHeader responseHeader) {
+        Preconditions.checkNotNull(responseHeader);
+
+        if (headers == null) {
+            return null;
+        }
+
+        return headers.optJSONObject(responseHeader.getKey());
     }
 
     @Nullable
@@ -60,7 +78,7 @@ public class HeaderUtils {
             try {
                 stringArray.add(jsonArray.getString(i));
             } catch (JSONException e) {
-                MoPubLog.d("Unable to parse item " + i + " from " + responseHeader.getKey());
+                MoPubLog.log(CUSTOM, "Unable to parse item " + i + " from " + responseHeader.getKey());
             }
         }
 

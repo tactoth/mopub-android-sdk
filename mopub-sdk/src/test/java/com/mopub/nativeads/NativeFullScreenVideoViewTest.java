@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.app.Activity;
@@ -7,8 +11,9 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.GradientDrawable;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.ImageView;
@@ -18,7 +23,6 @@ import android.widget.RelativeLayout;
 import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.common.util.Dips;
 import com.mopub.common.util.Drawables;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.mobileads.VastVideoProgressBarWidget;
 import com.mopub.mobileads.resource.CloseButtonDrawable;
 import com.mopub.mobileads.resource.CtaButtonDrawable;
@@ -29,12 +33,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import static org.fest.assertions.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
@@ -48,7 +52,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 @PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*", "org.json.*"})
 @PrepareForTest(NativeImageHelper.class)
 public class NativeFullScreenVideoViewTest {
@@ -296,8 +299,10 @@ public class NativeFullScreenVideoViewTest {
     public void setPrivacyInformationIconImageUrl_withNullUrl_shouldUseDefaultIcon() {
         subject.setPrivacyInformationIconImageUrl(null);
 
-        verify(spyPrivacyInformationIcon).setImageDrawable(
-                Drawables.NATIVE_PRIVACY_INFORMATION_ICON.createDrawable(context));
+        ArgumentCaptor<BitmapDrawable> argumentCaptor = ArgumentCaptor.forClass(BitmapDrawable.class);
+        verify(spyPrivacyInformationIcon).setImageDrawable(argumentCaptor.capture());
+        assertThat(argumentCaptor.getValue().getBitmap()).isEqualTo(
+                Drawables.NATIVE_PRIVACY_INFORMATION_ICON.getBitmap());
     }
 
     @Test

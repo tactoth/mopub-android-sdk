@@ -1,14 +1,23 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.content.Context;
+import android.graphics.Point;
 import android.location.Location;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.text.TextUtils;
+import android.view.WindowInsets;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.privacy.ConsentData;
 import com.mopub.common.privacy.PersonalInfoManager;
 import com.mopub.common.util.DateAndTime;
+import com.mopub.common.util.ResponseHeader;
+import com.mopub.network.RequestRateTracker;
 
 import static com.mopub.common.ClientMetadata.MoPubNetworkType;
 
@@ -109,11 +118,23 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
      */
     private static final String ADVANCED_BIDDING_TOKENS_KEY = "abt";
 
+    /**
+     * Value {@link ResponseHeader#BACKOFF_MS} from previous ad response for this ad unit id. Optional.
+     */
+    private static final String BACKOFF_TIME_MS_KEY = "backoff_ms";
+
+    /**
+     * Value {@link ResponseHeader#BACKOFF_REASON} from previous ad response for this ad unit id. Optional.
+     */
+    private static final String BACKOFF_REASON_KEY = "backoff_reason";
+
     protected Context mContext;
     protected String mAdUnitId;
     protected String mKeywords;
     protected String mUserDataKeywords;
     protected Location mLocation;
+    protected Point mRequestedAdSize;
+    protected WindowInsets mWindowInsets;
     @Nullable private final PersonalInfoManager mPersonalInfoManager;
     @Nullable private final ConsentData mConsentData;
     protected Boolean mForceGdprApplies;
@@ -148,6 +169,16 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         return this;
     }
 
+    public AdUrlGenerator withRequestedAdSize(final Point adSize) {
+        mRequestedAdSize = adSize;
+        return this;
+    }
+
+    public AdUrlGenerator withWindowInsets(final WindowInsets windowInsets) {
+        mWindowInsets = windowInsets;
+        return this;
+    }
+
     protected void setAdUnitId(String adUnitId) {
         addParam(AD_UNIT_ID_KEY, adUnitId);
     }
@@ -177,8 +208,7 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
                 MoPub.getLocationPrecision(),
                 MoPub.getLocationAwareness());
 
-        if (locationFromLocationService != null &&
-                (location == null || locationFromLocationService.getTime() >= location.getTime())) {
+        if (locationFromLocationService != null) {
             bestLocation = locationFromLocationService;
         }
 
@@ -292,6 +322,8 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         setAdUnitId(mAdUnitId);
 
         setSdkVersion(clientMetadata.getSdkVersion());
+        appendAppEngineInfo();
+        appendWrapperVersion();
         setDeviceInfo(clientMetadata.getDeviceManufacturer(),
                 clientMetadata.getDeviceModel(),
                 clientMetadata.getDeviceProduct());
@@ -309,7 +341,7 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         setTimezone(DateAndTime.getTimeZoneOffsetString());
 
         setOrientation(clientMetadata.getOrientationString());
-        setDeviceDimensions(clientMetadata.getDeviceDimensions());
+        setDeviceDimensions(clientMetadata.getDeviceDimensions(), mRequestedAdSize, mWindowInsets);
         setDensity(clientMetadata.getDensity());
 
         final String networkOperator = clientMetadata.getNetworkOperatorForUrl();
@@ -336,6 +368,8 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         setConsentedPrivacyPolicyVersion();
 
         setConsentedVendorListVersion();
+
+        addRequestRateParameters();
     }
 
     private void addParam(String key, MoPubNetworkType value) {
@@ -351,6 +385,17 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         final long locationLastUpdatedInMillis = location.getTime();
         final long nowInMillis = System.currentTimeMillis();
         return (int) (nowInMillis - locationLastUpdatedInMillis);
+    }
+
+    private void addRequestRateParameters() {
+        final RequestRateTracker rateTracker = RequestRateTracker.getInstance();
+        final RequestRateTracker.TimeRecord record = rateTracker.getRecordForAdUnit(mAdUnitId);
+        if (record == null || record.mBlockIntervalMs < 1) {
+            return;
+        }
+
+        addParam(BACKOFF_TIME_MS_KEY, String.valueOf(record.mBlockIntervalMs));
+        addParam(BACKOFF_REASON_KEY, record.mReason);
     }
 
     /**

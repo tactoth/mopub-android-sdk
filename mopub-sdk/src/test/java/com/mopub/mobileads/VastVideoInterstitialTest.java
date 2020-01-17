@@ -1,8 +1,13 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.mopub.common.AdReport;
 import com.mopub.common.CacheServiceTest;
@@ -17,9 +22,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 import org.robolectric.shadows.httpclient.FakeHttp;
-import org.robolectric.shadows.support.v4.ShadowLocalBroadcastManager;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -45,7 +48,6 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class VastVideoInterstitialTest extends ResponseBodyInterstitialTest {
     private Context context;
     private CustomEventInterstitialListener customEventInterstitialListener;
@@ -134,12 +136,12 @@ public class VastVideoInterstitialTest extends ResponseBodyInterstitialTest {
         subject.loadInterstitial(context, customEventInterstitialListener, localExtras, serverExtras);
 
         Intent intent = getIntentForActionAndIdentifier(ACTION_INTERSTITIAL_SHOW, broadcastIdentifier);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener).onInterstitialShown();
 
         intent = getIntentForActionAndIdentifier(ACTION_INTERSTITIAL_DISMISS, broadcastIdentifier);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener).onInterstitialDismissed();
     }
@@ -199,12 +201,12 @@ public class VastVideoInterstitialTest extends ResponseBodyInterstitialTest {
 
         Intent intent;
         intent = new Intent(ACTION_INTERSTITIAL_SHOW);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener, never()).onInterstitialShown();
 
         intent = new Intent(ACTION_INTERSTITIAL_DISMISS);
-        ShadowLocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
         verify(customEventInterstitialListener, never()).onInterstitialDismissed();
     }

@@ -1,7 +1,11 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.mopub.common.BaseUrlGenerator;
 import com.mopub.common.ClientMetadata;
@@ -33,7 +37,11 @@ class PositioningUrlGenerator extends BaseUrlGenerator {
 
         ClientMetadata clientMetadata = ClientMetadata.getInstance(mContext);
 
-        setSdkVersion(clientMetadata.getSdkVersion());
+        addParam(SDK_VERSION_KEY, clientMetadata.getSdkVersion());
+
+        appendAppEngineInfo();
+
+        appendWrapperVersion();
 
         setDeviceInfo(clientMetadata.getDeviceManufacturer(),
                 clientMetadata.getDeviceModel(),
@@ -48,9 +56,5 @@ class PositioningUrlGenerator extends BaseUrlGenerator {
 
     private void setAdUnitId(@NonNull String adUnitId) {
         addParam("id", adUnitId);
-    }
-
-    private void setSdkVersion(@NonNull String sdkVersion) {
-        addParam("nv", sdkVersion);
     }
 }

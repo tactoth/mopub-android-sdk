@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.annotation.SuppressLint;
@@ -6,7 +10,7 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.view.Gravity;
 import android.view.WindowManager;
 import android.webkit.WebSettings;
@@ -46,6 +50,10 @@ public class BaseWebView extends WebView {
 
     @Override
     public void destroy() {
+        if (mIsDestroyed) {
+            return;
+        }
+
         mIsDestroyed = true;
 
         // Needed to prevent receiving the following error on Android versions using WebViewClassic

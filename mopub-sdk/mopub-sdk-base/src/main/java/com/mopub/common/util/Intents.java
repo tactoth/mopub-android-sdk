@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common.util;
 
 import android.app.Activity;
@@ -8,8 +12,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.mopub.common.Constants;
@@ -18,15 +22,28 @@ import com.mopub.common.MoPubBrowser;
 import com.mopub.common.Preconditions;
 import com.mopub.common.UrlAction;
 import com.mopub.common.logging.MoPubLog;
+
 import com.mopub.exceptions.IntentNotResolvableException;
 import com.mopub.exceptions.UrlParseException;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static com.mopub.common.MoPub.getBrowserAgent;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 public class Intents {
+
+    private static final Map<String, String> STORE_SCHEME_TO_URL_MAP;
+    static {
+        Map<String, String> tempMap = new HashMap<>();
+        tempMap.put("market", "https://play.google.com/store/apps/details?%s");
+        tempMap.put("amzn", "http://www.amazon.com/gp/mas/dl/android?%s");
+        STORE_SCHEME_TO_URL_MAP = Collections.unmodifiableMap(tempMap);
+    }
 
     private Intents() {}
 
@@ -125,7 +142,7 @@ public class Intents {
         } catch (UnsupportedOperationException e) {
             // Accessing query parameters only makes sense for hierarchical URIs as per:
             // https://developer.android.com/reference/android/net/Uri.html#getQueryParameter(java.lang.String)
-            MoPubLog.w("Could not handle url: " + uri);
+            MoPubLog.log(CUSTOM, "Could not handle url: " + uri);
             throw new UrlParseException("Passed-in URL did not create a hierarchical URI.");
         }
 
@@ -175,7 +192,7 @@ public class Intents {
         } catch (UnsupportedOperationException e) {
             // Accessing query parameters only makes sense for hierarchical URIs as per:
             // https://developer.android.com/reference/android/net/Uri.html#getQueryParameter(java.lang.String)
-            MoPubLog.w("Could not handle url: " + uri);
+            MoPubLog.log(CUSTOM, "Could not handle url: " + uri);
             throw new UrlParseException("Passed-in URL did not create a hierarchical URI.");
         }
 
@@ -214,7 +231,7 @@ public class Intents {
         Preconditions.checkNotNull(context);
         Preconditions.checkNotNull(uri);
 
-        MoPubLog.d("Final URI to show in browser: " + uri);
+        MoPubLog.log(CUSTOM, "Final URI to show in browser: " + uri);
 
         final Bundle extras = new Bundle();
         extras.putString(MoPubBrowser.DESTINATION_URL_KEY, uri.toString());
@@ -250,6 +267,14 @@ public class Intents {
 
         if (deviceCanHandleIntent(context, intent)) {
             launchApplicationIntent(context, intent);
+        } else if (STORE_SCHEME_TO_URL_MAP.containsKey(intent.getScheme())
+                && intent.getData() != null
+                && !TextUtils.isEmpty(intent.getData().getQuery())) {
+            // If this is a market intent and we don't have the Play Store or Amazon App Store installed,
+            // create and launch an intent for the appropriate Play Store URL
+            final String storeBrowserUrl = String.format(STORE_SCHEME_TO_URL_MAP.get(intent.getScheme()), intent.getData().getQuery());
+            final Intent storeBrowserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(storeBrowserUrl));
+            launchApplicationIntent(context, storeBrowserIntent);
         } else {
             // Deeplink+ needs this exception to know primaryUrl failed and then attempt fallbackUrl
             // See UrlAction.FOLLOW_DEEP_LINK_WITH_FALLBACK
@@ -273,7 +298,7 @@ public class Intents {
         } else {
             final String fallbackUrl = intent.getStringExtra("browser_fallback_url");
             if (TextUtils.isEmpty(fallbackUrl)) {
-                if (!"market".equalsIgnoreCase(intent.getScheme())) {
+                if (!STORE_SCHEME_TO_URL_MAP.containsKey(intent.getScheme())) {
                     launchApplicationUrl(context, getPlayStoreUri(intent));
                 } else {
                     throw new IntentNotResolvableException("Device could not handle neither " +

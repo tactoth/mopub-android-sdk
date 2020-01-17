@@ -1,8 +1,16 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common.util;
 
 public enum ResponseHeader {
+    BACKOFF_REASON("backoff_reason"),
+    BACKOFF_MS("backoff_ms"),
     AD_TIMEOUT("x-ad-timeout-ms"),
     AD_TYPE("x-adtype"),
+    ADUNIT_FORMAT("adunit-format"),
+    IMPRESSION_DATA("impdata"),
     CLICK_TRACKING_URL("x-clickthrough"),
     CUSTOM_EVENT_DATA("x-custom-event-class-data"),
     CUSTOM_EVENT_NAME("x-custom-event-class-name"),
@@ -13,12 +21,10 @@ public enum ResponseHeader {
     HEIGHT("x-height"),
     IMPRESSION_URL("x-imptracker"),
     IMPRESSION_URLS("imptrackers"),
-    REDIRECT_URL("x-launchpage"),
     NATIVE_PARAMS("x-nativeparams"),
     NETWORK_TYPE("x-networktype"),
     ORIENTATION("x-orientation"),
     REFRESH_TIME("x-refreshtime"),
-    SCROLLABLE("x-scrollable"),
     WARMUP("x-warmup"),
     WIDTH("x-width"),
     BACKFILL("x-backfill"),
@@ -61,10 +67,6 @@ public enum ResponseHeader {
     VIDEO_VIEWABILITY_TRACKERS("x-video-viewability-trackers"),
     DISABLE_VIEWABILITY("x-disable-viewability"),
 
-    // Advanced bidding fields
-    AD_RESPONSE_TYPE("x-ad-response-type"),
-    
-
     // Client-side Waterfall
     AD_RESPONSES("ad-responses"),
     CONTENT("content"),
@@ -72,15 +74,18 @@ public enum ResponseHeader {
 
     BEFORE_LOAD_URL("x-before-load-url"),
     AFTER_LOAD_URL("x-after-load-url"),
-
-    @Deprecated CUSTOM_SELECTOR("x-customselector"),
+    AFTER_LOAD_SUCCESS_URL("x-after-load-success-url"),
+    AFTER_LOAD_FAIL_URL("x-after-load-fail-url"),
 
     // Consent fields
     INVALIDATE_CONSENT("invalidate_consent"),
     FORCE_EXPLICIT_NO("force_explicit_no"),
     REACQUIRE_CONSENT("reacquire_consent"),
     CONSENT_CHANGE_REASON("consent_change_reason"),
-    FORCE_GDPR_APPLIES("force_gdpr_applies");
+    FORCE_GDPR_APPLIES("force_gdpr_applies"),
+
+    // Enable logging with rewrite
+    ENABLE_DEBUG_LOGGING("enable_debug_logging");
 
     private final String key;
     ResponseHeader(String key) {

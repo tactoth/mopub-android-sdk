@@ -1,7 +1,11 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.view.View;
 
 import com.mopub.common.Preconditions;
@@ -12,6 +16,8 @@ import org.json.JSONException;
 
 import java.util.HashSet;
 import java.util.Set;
+
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.CUSTOM;
 
 /**
  * This is the base class for implementations of all native ad formats. When implementing a new
@@ -102,7 +108,7 @@ public abstract class BaseNativeAd {
                 addImpressionTracker(trackers.getString(i));
             } catch (JSONException e) {
                 // This will only occur if we access a non-existent index in JSONArray.
-                MoPubLog.d("Unable to parse impression trackers.");
+                MoPubLog.log(CUSTOM, "Unable to parse impression trackers.");
             }
         }
     }
@@ -118,7 +124,7 @@ public abstract class BaseNativeAd {
                 addClickTracker(trackers.getString(i));
             } catch (JSONException e) {
                 // This will only occur if we access a non-existent index in JSONArray.
-                MoPubLog.d("Unable to parse click trackers.");
+                MoPubLog.log(CUSTOM, "Unable to parse click trackers.");
             }
         }
     }

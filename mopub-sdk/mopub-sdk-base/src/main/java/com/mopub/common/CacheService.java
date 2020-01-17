@@ -1,9 +1,13 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.content.Context;
 import android.os.AsyncTask;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.util.DeviceUtils;
@@ -19,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import static com.mopub.common.DiskLruCache.open;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 public class CacheService {
     public interface DiskLruCacheGetListener {
@@ -53,7 +58,7 @@ public class CacheService {
                         diskCacheSizeBytes
                 );
             } catch (IOException e) {
-                MoPubLog.d("Unable to create DiskLruCache", e);
+                MoPubLog.log(CUSTOM, "Unable to create DiskLruCache", e);
                 return false;
             }
         }
@@ -131,7 +136,7 @@ public class CacheService {
                 }
             }
         } catch (Exception e) {
-            MoPubLog.d("Unable to get from DiskLruCache", e);
+            MoPubLog.log(CUSTOM, "Unable to get from DiskLruCache", e);
         } finally {
             if (snapshot != null) {
                 snapshot.close();
@@ -172,7 +177,7 @@ public class CacheService {
             sDiskLruCache.flush();
             editor.commit();
         } catch (Exception e) {
-            MoPubLog.d("Unable to put to DiskLruCache", e);
+            MoPubLog.log(CUSTOM, "Unable to put to DiskLruCache", e);
             try {
                 if (editor != null) {
                     editor.abort();

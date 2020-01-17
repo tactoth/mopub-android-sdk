@@ -1,6 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
+
+import android.content.Context;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -26,11 +32,14 @@ public class AdAlertGestureListener extends GestureDetector.SimpleOnGestureListe
 
     private View mView;
 
+    boolean mIsClicked;
+
     AdAlertGestureListener(View view, @Nullable AdReport adReport) {
         super();
         if (view != null && view.getWidth() > 0) {
             mCurrentThresholdInDips = Math.min(MAXIMUM_THRESHOLD_X_IN_DIPS, view.getWidth() / 3f);
         }
+        mIsClicked = false;
         mView = view;
         mAdReport = adReport;
     }
@@ -43,7 +52,7 @@ public class AdAlertGestureListener extends GestureDetector.SimpleOnGestureListe
 
         // e1 is always the initial touch down event.
         // e2 is the true motion event
-        if (isTouchOutOfBoundsOnYAxis(e1.getY(), e2.getY())) {
+        if (isTouchOutOfBoundsOnYAxis(e1, e2)) {
             mCurrentZigZagState = ZigZagState.FAILED;
             return super.onScroll(e1, e2, distanceX, distanceY);
         }
@@ -71,8 +80,9 @@ public class AdAlertGestureListener extends GestureDetector.SimpleOnGestureListe
     }
 
     void finishGestureDetection() {
-        if (mCurrentZigZagState == mCurrentZigZagState.FINISHED) {
-            mAdAlertReporter = new AdAlertReporter(mView.getContext(), mView, mAdReport);
+        final Context context = mView.getContext();
+        if (mCurrentZigZagState == ZigZagState.FINISHED && context != null) {
+            mAdAlertReporter = new AdAlertReporter(context, mView, mAdReport);
             mAdAlertReporter.send();
         }
         reset();
@@ -83,7 +93,12 @@ public class AdAlertGestureListener extends GestureDetector.SimpleOnGestureListe
         mCurrentZigZagState = ZigZagState.UNSET;
     }
 
-    private boolean isTouchOutOfBoundsOnYAxis(float initialY, float currentY) {
+    private boolean isTouchOutOfBoundsOnYAxis(MotionEvent e1, MotionEvent e2) {
+        if (e1 == null || e2 == null) {
+            return false;
+        }
+        final float initialY = e1.getY();
+        final float currentY = e2.getY();
         return (Math.abs(currentY - initialY) > MAXIMUM_THRESHOLD_Y_IN_DIPS);
     }
 
@@ -165,5 +180,19 @@ public class AdAlertGestureListener extends GestureDetector.SimpleOnGestureListe
     @Deprecated // for testing
     AdAlertReporter getAdAlertReporter(){
         return mAdAlertReporter;
+    }
+
+    void onResetUserClick() {
+        mIsClicked = false;
+    }
+
+    boolean isClicked() {
+        return mIsClicked;
+    }
+
+    @Override
+    public boolean onSingleTapUp(MotionEvent e) {
+        mIsClicked = true;
+        return super.onSingleTapUp(e);
     }
 }

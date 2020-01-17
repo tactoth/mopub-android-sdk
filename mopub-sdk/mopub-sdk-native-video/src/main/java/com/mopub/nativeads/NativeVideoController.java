@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
@@ -8,10 +12,11 @@ import android.media.AudioManager.OnAudioFocusChangeListener;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.view.Surface;
 import android.view.TextureView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
@@ -23,7 +28,6 @@ import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.PlayerMessage;
 import com.google.android.exoplayer2.Renderer;
-import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.audio.MediaCodecAudioRenderer;
 import com.google.android.exoplayer2.extractor.Extractor;
 import com.google.android.exoplayer2.extractor.ExtractorsFactory;
@@ -37,15 +41,18 @@ import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.trackselection.TrackSelector;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultAllocator;
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
+import com.google.android.exoplayer2.upstream.cache.Cache;
+import com.google.android.exoplayer2.upstream.cache.CacheDataSource;
 import com.google.android.exoplayer2.video.MediaCodecVideoRenderer;
 import com.mopub.common.Preconditions;
+import com.mopub.common.VisibilityTracker.VisibilityChecker;
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.mobileads.RepeatingHandlerRunnable;
 import com.mopub.mobileads.VastTracker;
 import com.mopub.mobileads.VastVideoConfig;
 import com.mopub.nativeads.NativeVideoController.NativeVideoProgressRunnable.ProgressListener;
-import com.mopub.nativeads.VisibilityTracker.VisibilityChecker;
 import com.mopub.network.TrackingRequest;
 
 import java.lang.ref.WeakReference;
@@ -53,6 +60,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * Wrapper class around the {@link ExoPlayer} to provide a nice interface into the player along
@@ -300,7 +309,7 @@ public class NativeVideoController extends ExoPlayer.DefaultEventListener implem
     public void onPlayerStateChanged(final boolean playWhenReady, final int newState) {
         if (newState == STATE_ENDED && mFinalFrame == null) {
             if (mExoPlayer == null || mSurface == null || mTextureView == null) {
-                MoPubLog.w("onPlayerStateChanged called afer view has been recycled.");
+                MoPubLog.log(CUSTOM, "onPlayerStateChanged called afer view has been recycled.");
                 return;
             }
 
@@ -399,6 +408,7 @@ public class NativeVideoController extends ExoPlayer.DefaultEventListener implem
             defaultLoadControlBuilder.setAllocator(allocator);
 
             mExoPlayer = mMoPubExoPlayerFactory.newInstance(
+                    mContext,
                     new Renderer[]{mVideoRenderer, mAudioRenderer},
                     new DefaultTrackSelector(),
                     defaultLoadControlBuilder.createDefaultLoadControl());
@@ -409,7 +419,15 @@ public class NativeVideoController extends ExoPlayer.DefaultEventListener implem
             final DataSource.Factory dataSourceFactory = new DataSource.Factory() {
                 @Override
                 public DataSource createDataSource() {
-                    return new HttpDiskCompositeDataSource(mContext, "exo_demo");
+                    DataSource dataSource = new DefaultHttpDataSource("exo_demo",
+                            null);
+                    final Cache cache = MoPubCache.getCacheInstance(mContext);
+
+                    if (cache != null) {
+                        dataSource = new CacheDataSource(cache, dataSource);
+                    }
+
+                    return dataSource;
                 }
             };
 
@@ -456,7 +474,7 @@ public class NativeVideoController extends ExoPlayer.DefaultEventListener implem
         final PlayerMessage playerMessage =  exoPlayer.createMessage(audioRenderer);
 
         if (playerMessage == null) {
-            MoPubLog.d("ExoPlayer.createMessage returned null.");
+            MoPubLog.log(CUSTOM, "ExoPlayer.createMessage returned null.");
             return;
         }
 
@@ -476,7 +494,7 @@ public class NativeVideoController extends ExoPlayer.DefaultEventListener implem
         final PlayerMessage playerMessage =  exoPlayer.createMessage(videoRenderer);
 
         if (playerMessage == null) {
-            MoPubLog.d("ExoPlayer.createMessage returned null.");
+            MoPubLog.log(CUSTOM, "ExoPlayer.createMessage returned null.");
             return;
         }
 
@@ -490,9 +508,11 @@ public class NativeVideoController extends ExoPlayer.DefaultEventListener implem
      */
     @VisibleForTesting
     static class MoPubExoPlayerFactory {
-        public ExoPlayer newInstance(@NonNull final Renderer[] renderers,
-                @NonNull final TrackSelector trackSelector, @Nullable LoadControl loadControl) {
-            return ExoPlayerFactory.newInstance(renderers, trackSelector, loadControl);
+        public ExoPlayer newInstance(@NonNull final Context context,
+                                     @NonNull final Renderer[] renderers,
+                                     @NonNull final TrackSelector trackSelector,
+                                     @Nullable LoadControl loadControl) {
+            return ExoPlayerFactory.newInstance(context, renderers, trackSelector, loadControl);
         }
     }
 

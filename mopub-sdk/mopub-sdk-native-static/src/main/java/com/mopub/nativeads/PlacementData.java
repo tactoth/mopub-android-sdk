@@ -1,12 +1,18 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.nativeads.MoPubNativeAdPositioning.MoPubClientPositioning;
 
 import java.util.List;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * A data that represents placed ads in a {@link com.mopub.nativeads.MoPubStreamAdPlacer},
@@ -220,7 +226,7 @@ class PlacementData {
                 mDesiredInsertionPositions, mDesiredCount, adjustedPosition);
         if (desiredIndex == mDesiredCount
                 || mDesiredInsertionPositions[desiredIndex] != adjustedPosition) {
-            MoPubLog.w("Attempted to insert an ad at an invalid position");
+            MoPubLog.log(CUSTOM, "Attempted to insert an ad at an invalid position");
             return;
         }
 

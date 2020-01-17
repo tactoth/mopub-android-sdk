@@ -1,14 +1,22 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Point;
 import android.location.Location;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
+import android.view.Window;
+import android.view.WindowInsets;
 
 import com.mopub.common.AdReport;
 import com.mopub.common.AdUrlGenerator;
@@ -38,14 +46,12 @@ import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 import static com.mopub.mobileads.MoPubErrorCode.EXPIRED;
 
 /**
@@ -135,70 +141,11 @@ public class MoPubRewardedVideoManager {
                 SharedPreferencesHelper.getSharedPreferences(mContext, CUSTOM_EVENT_PREF_NAME);
     }
 
-    @NonNull
-    public static synchronized List<CustomEventRewardedVideo> initNetworks(
-            @NonNull final Activity mainActivity,
-            @NonNull final List<Class<? extends CustomEventRewardedVideo>> networksToInit) {
-        Preconditions.checkNotNull(mainActivity);
-        Preconditions.checkNotNull(networksToInit);
-
-        if (sInstance == null) {
-            logErrorNotInitialized();
-            return Collections.emptyList();
-        }
-
-        // List of networks that end up getting initialized.
-        List<CustomEventRewardedVideo> initializedNetworksList = new LinkedList<>();
-
-        // Fetch saved network init settings from SharedPrefs.
-        final Map<String, ?> networkInitSettings = sCustomEventSharedPrefs.getAll();
-        MoPubLog.d(String.format(Locale.US, "fetched init settings for %s networks: %s",
-                networkInitSettings.size(), networkInitSettings.keySet()));
-
-        // Dedupe array of networks to init.
-        final LinkedHashSet<Class<? extends CustomEventRewardedVideo>> uniqueNetworksToInit =
-                new LinkedHashSet<>(networksToInit);
-
-        for (Class<? extends CustomEventRewardedVideo> networkClass : uniqueNetworksToInit) {
-            final String networkClassName = networkClass.getName();
-            if (networkInitSettings.containsKey(networkClassName)) {
-                try {
-                    final String networkInitParamsJsonString =
-                            (String) networkInitSettings.get(networkClassName);
-
-                    final Map<String, String> networkInitParamsMap =
-                            Json.jsonStringToMap(networkInitParamsJsonString);
-
-                    final CustomEventRewardedVideo customEvent =
-                            Reflection.instantiateClassWithEmptyConstructor(
-                                    networkClassName,
-                                    CustomEventRewardedVideo.class);
-
-                    MoPubLog.d(String.format(Locale.US, "Initializing %s with params %s",
-                            networkClassName, networkInitParamsMap));
-
-                    customEvent.checkAndInitializeSdk(
-                            mainActivity,
-                            Collections.<String, Object>emptyMap(),
-                            networkInitParamsMap);
-
-                    initializedNetworksList.add(customEvent);
-                } catch (Exception e) {
-                    MoPubLog.e("Error fetching init settings for network " + networkClassName);
-                }
-            } else {
-                MoPubLog.d("Init settings not found for " + networkClassName);
-            }
-        }
-
-        return initializedNetworksList;
-    }
-
     public static synchronized void init(@NonNull Activity mainActivity, MediationSettings... mediationSettings) {
         if (sInstance == null) {
             sInstance = new MoPubRewardedVideoManager(mainActivity, mediationSettings);
         } else {
-            MoPubLog.e("Tried to call initializeRewardedVideo more than once. Only the first " +
+            MoPubLog.log(CUSTOM, "Tried to call initializeRewardedVideo more than once. Only the first " +
                     "initialization call has any effect.");
         }
     }
@@ -306,13 +253,13 @@ public class MoPubRewardedVideoManager {
         final String currentlyShowingAdUnitId =
                 sInstance.mRewardedAdData.getCurrentlyShowingAdUnitId();
         if (adUnitId.equals(currentlyShowingAdUnitId)) {
-            MoPubLog.d(String.format(Locale.US, "Did not queue rewarded ad request for ad " +
+            MoPubLog.log(CUSTOM, String.format(Locale.US, "Did not queue rewarded ad request for ad " +
                     "unit %s. The ad is already showing.", adUnitId));
             return;
         }
 
         if (sInstance.rewardedAdsLoaders.canPlay(adUnitId)) {
-            MoPubLog.d(String.format(Locale.US, "Did not queue rewarded ad request for ad " +
+            MoPubLog.log(CUSTOM, String.format(Locale.US, "Did not queue rewarded ad request for ad " +
             "unit %s. This ad unit already finished loading and is ready to show.", adUnitId));
             postToInstance(new Runnable() {
                 @Override
@@ -339,14 +286,15 @@ public class MoPubRewardedVideoManager {
         }
 
         final AdUrlGenerator urlGenerator = new WebViewAdUrlGenerator(sInstance.mContext, false);
-        final String adUrlString = urlGenerator.withAdUnitId(adUnitId)
+        urlGenerator.withAdUnitId(adUnitId)
                 .withKeywords(requestParameters == null ? null : requestParameters.mKeywords)
                 .withUserDataKeywords((requestParameters == null ||
                         !MoPub.canCollectPersonalInformation()) ? null : requestParameters.mUserDataKeywords)
-                .withLocation(requestParameters == null ? null : requestParameters.mLocation)
-                .generateUrlString(Constants.HOST);
+                .withLocation(requestParameters == null ? null : requestParameters.mLocation);
 
-        loadVideo(adUnitId, adUrlString, null);
+        setSafeAreaValues(urlGenerator);
+
+        loadVideo(adUnitId, urlGenerator.generateUrlString(Constants.HOST), null);
     }
 
     private static void loadVideo(@NonNull String adUnitId, @NonNull String adUrlString, @Nullable MoPubErrorCode errorCode) {
@@ -360,18 +308,13 @@ public class MoPubRewardedVideoManager {
 
     private void fetchAd(@NonNull String adUnitId, @NonNull String adUrlString, @Nullable MoPubErrorCode errorCode) {
         if (rewardedAdsLoaders.isLoading(adUnitId)) {
-            MoPubLog.d(String.format(Locale.US, "Did not queue rewarded ad request for ad " +
-                    "unit %s. A request is already pending.", adUnitId));
-            return;
-        }
-        if (rewardedAdsLoaders.isLoading(adUnitId)) {
-            MoPubLog.d(String.format(Locale.US, "Did not queue rewarded ad request for ad " +
+            MoPubLog.log(CUSTOM, String.format(Locale.US, "Did not queue rewarded ad request for ad " +
                     "unit %s. A request is already pending.", adUnitId));
             return;
         }
 
         // Issue MoPub request
-        MoPubLog.d(String.format(Locale.US,
+        MoPubLog.log(CUSTOM, String.format(Locale.US,
                 "Loading rewarded ad request for ad unit %s with URL %s", adUnitId, adUrlString));
         rewardedAdsLoaders.loadNextAd(mContext, adUnitId, adUrlString, errorCode);
     }
@@ -398,7 +341,7 @@ public class MoPubRewardedVideoManager {
         }
 
         if (customData != null && customData.length() > CUSTOM_DATA_MAX_LENGTH_BYTES) {
-            MoPubLog.w(String.format(
+            MoPubLog.log(CUSTOM, String.format(
                     Locale.US,
                     "Provided rewarded ad custom data parameter longer than supported" +
                             "(%d bytes, %d maximum)",
@@ -422,9 +365,9 @@ public class MoPubRewardedVideoManager {
             customEvent.show();
         } else {
             if (sInstance.rewardedAdsLoaders.isLoading(adUnitId)) {
-                MoPubLog.d("Rewarded ad is not ready to be shown yet.");
+                MoPubLog.log(CUSTOM, "Rewarded ad is not ready to be shown yet.");
             } else {
-                MoPubLog.d("No rewarded ad loading or loaded.");
+                MoPubLog.log(CUSTOM, "No rewarded ad loading or loaded.");
             }
 
             sInstance.failover(adUnitId, MoPubErrorCode.VIDEO_NOT_AVAILABLE);
@@ -468,6 +411,31 @@ public class MoPubRewardedVideoManager {
         }
     }
 
+    private static void setSafeAreaValues(@NonNull final AdUrlGenerator urlGenerator) {
+        Preconditions.checkNotNull(urlGenerator);
+
+        // Set the requested ad size as screen size
+        final Point dimens = ClientMetadata.getInstance(sInstance.mContext).getDeviceDimensions();
+        urlGenerator.withRequestedAdSize(dimens);
+
+        // Set the window insets if we can get them
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            final Activity activity = sInstance.mMainActivity.get();
+            if (activity == null) {
+                return;
+            }
+            final Window window = sInstance.mMainActivity.get().getWindow();
+            if (window == null) {
+                return;
+            }
+            final WindowInsets insets = window.getDecorView().getRootWindowInsets();
+            if (insets == null) {
+                return;
+            }
+            urlGenerator.withWindowInsets(insets);
+        }
+    }
+
     ///// Ad Request / Response methods /////
     void onAdSuccess(AdResponse adResponse) {
         final String adUnitId = adResponse.getAdUnitId();
@@ -476,7 +444,7 @@ public class MoPubRewardedVideoManager {
         final String customEventClassName = adResponse.getCustomEventClassName();
 
         if (customEventClassName == null) {
-            MoPubLog.e("Couldn't create custom event, class name was null.");
+            MoPubLog.log(CUSTOM, "Couldn't create custom event, class name was null.");
             failover(adUnitId, MoPubErrorCode.ADAPTER_CONFIGURATION_ERROR);
             return;
         }
@@ -533,7 +501,7 @@ public class MoPubRewardedVideoManager {
                 try {
                     parseMultiCurrencyJson(adUnitId, rewardedCurrencies);
                 } catch (Exception e) {
-                    MoPubLog.e("Error parsing rewarded currencies JSON header: " + rewardedCurrencies);
+                    MoPubLog.log(CUSTOM, "Error parsing rewarded currencies JSON header: " + rewardedCurrencies);
                     failover(adUnitId, MoPubErrorCode.REWARDED_CURRENCIES_PARSING_ERROR);
                     return;
                 }
@@ -544,7 +512,7 @@ public class MoPubRewardedVideoManager {
 
             Activity mainActivity = mMainActivity.get();
             if (mainActivity == null) {
-                MoPubLog.d("Could not load custom event because Activity reference was null. Call" +
+                MoPubLog.log(CUSTOM, "Could not load custom event because Activity reference was null. Call" +
                         " MoPub#updateActivity before requesting more rewarded ads.");
 
                 // Don't go through the ordinary failover process since we have
@@ -557,7 +525,7 @@ public class MoPubRewardedVideoManager {
             Runnable timeout = new Runnable() {
                 @Override
                 public void run() {
-                    MoPubLog.d("Custom Event failed to load rewarded ad in a timely fashion.");
+                    MoPubLog.log(CUSTOM, "Custom Event failed to load rewarded ad in a timely fashion.");
                     onRewardedVideoLoadFailure(customEvent.getClass(), customEvent.getAdNetworkId(),
                             MoPubErrorCode.NETWORK_TIMEOUT);
                     customEvent.onInvalidate();
@@ -575,26 +543,25 @@ public class MoPubRewardedVideoManager {
             if (customEvent instanceof CustomEventRewardedVideo) {
                 final String serverExtrasJsonString = (new JSONObject(serverExtras)).toString();
 
-                MoPubLog.d(String.format(Locale.US,
+                MoPubLog.log(CUSTOM, String.format(Locale.US,
                         "Updating init settings for custom event %s with params %s",
                         customEventClassName, serverExtrasJsonString));
 
-                // https://github.com/robolectric/robolectric/issues/3641
                 sCustomEventSharedPrefs
                         .edit()
                         .putString(customEventClassName, serverExtrasJsonString)
-                        .commit();
+                        .apply();
             }
 
             // Load custom event
-            MoPubLog.d(String.format(Locale.US,
+            MoPubLog.log(CUSTOM, String.format(Locale.US,
                     "Loading custom event with class name %s", customEventClassName));
             customEvent.loadCustomEvent(mainActivity, localExtras, serverExtras);
 
             final String adNetworkId = customEvent.getAdNetworkId();
             mRewardedAdData.updateAdUnitCustomEventMapping(adUnitId, customEvent, adNetworkId);
         } catch (Exception e) {
-            MoPubLog.e(String.format(Locale.US,
+            MoPubLog.log(CUSTOM, String.format(Locale.US,
                     "Couldn't create custom event with class name %s", customEventClassName));
             failover(adUnitId, MoPubErrorCode.ADAPTER_CONFIGURATION_ERROR);
         }
@@ -758,7 +725,6 @@ public class MoPubRewardedVideoManager {
                     onRewardedVideoPlaybackErrorAction(currentlyShowingAdUnitId, errorCode);
                 }
             });
-            sInstance.rewardedAdsLoaders.markFail(currentlyShowingAdUnitId);
         }
         sInstance.mRewardedAdData.setCurrentlyShowingAdUnitId(null);
     }
@@ -766,6 +732,7 @@ public class MoPubRewardedVideoManager {
     private static void onRewardedVideoPlaybackErrorAction(@NonNull final String adUnitId, @NonNull final MoPubErrorCode errorCode) {
         Preconditions.checkNotNull(adUnitId);
         Preconditions.checkNotNull(errorCode);
+        sInstance.rewardedAdsLoaders.markFail(adUnitId);
         if (sInstance.mVideoListener != null) {
             sInstance.mVideoListener.onRewardedVideoPlaybackError(adUnitId, errorCode);
         }
@@ -826,11 +793,11 @@ public class MoPubRewardedVideoManager {
 
     private static void onRewardedVideoClosedAction(@NonNull final String adUnitId) {
         Preconditions.checkNotNull(adUnitId);
+        // remove adloader from map
+        sInstance.rewardedAdsLoaders.markPlayed(adUnitId);
         if (sInstance.mVideoListener != null) {
             sInstance.mVideoListener.onRewardedVideoClosed(adUnitId);
         }
-        // remove adloader from map
-        sInstance.rewardedAdsLoaders.markPlayed(adUnitId);
     }
 
     public static <T extends CustomEventRewardedAd>
@@ -936,7 +903,7 @@ public class MoPubRewardedVideoManager {
     }
 
     private static void logErrorNotInitialized() {
-        MoPubLog.e("MoPub rewarded ad was not initialized. You must call " +
+        MoPubLog.log(CUSTOM, "MoPub rewarded ad was not initialized. You must call " +
                 "MoPub.initializeRewardedVideo() before loading or attempting " +
                 "to play rewarded ads.");
     }

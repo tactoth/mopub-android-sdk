@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import com.mopub.common.test.support.SdkTestRunner;
@@ -6,14 +10,12 @@ import com.mopub.mobileads.test.support.VastUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.annotation.Config;
 import org.w3c.dom.Node;
 
 import static com.mopub.mobileads.test.support.VastUtils.createNode;
 import static org.fest.assertions.api.Assertions.assertThat;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class VastCompanionAdConfigXmlManagerTest {
 
     private VastCompanionAdXmlManager subject;
@@ -27,6 +29,9 @@ public class VastCompanionAdConfigXmlManagerTest {
                 "        <Tracking event=\"creativeView\">https://tracking/creativeView1</Tracking>" +
                 "        <Tracking event=\"creativeView\">https://tracking/creativeView2</Tracking>" +
                 "        <Tracking event=\"creativeView\">https://tracking/creativeView3</Tracking>" +
+                "        <Tracking event=\"creativeView\"></Tracking>" + // missing Uri
+                "        <Tracking event=\"creativeView\"/>" + // self-terminating with missing Uri
+                "        <Tracking/>" + // self-terminating with missing Uri
                 "    </TrackingEvents>" +
                 "    <CompanionClickThrough>https://clickthrough</CompanionClickThrough>" +
                 "    <CompanionClickThrough>https://second_clickthrough</CompanionClickThrough>" +
@@ -36,6 +41,8 @@ public class VastCompanionAdConfigXmlManagerTest {
                 "    <CompanionClickTracking>" +
                 "        <![CDATA[https://clicktrackingTwo]]>" +
                 "    </CompanionClickTracking>" +
+                "    <CompanionClickTracking></CompanionClickTracking>" + // empty tracker
+                "    <CompanionClickTracking/>" + // self-terminating empty tracker
                 "    <RandomUnusedTag>This_is_unused</RandomUnusedTag>" +
                 "</Companion>";
 
@@ -88,7 +95,7 @@ public class VastCompanionAdConfigXmlManagerTest {
     }
 
     @Test
-    public void getClickTrackers_shouldReturnAllUrls() {
+    public void getClickTrackers_shouldReturnAllUrls_shouldNotThrowException() {
         assertThat(VastUtils.vastTrackersToStrings(subject.getClickTrackers()))
                 .containsOnly("https://clicktrackingOne",
                         "https://clicktrackingTwo");

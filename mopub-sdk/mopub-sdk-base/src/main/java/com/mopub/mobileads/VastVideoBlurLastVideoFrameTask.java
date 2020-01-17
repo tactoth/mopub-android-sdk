@@ -1,16 +1,23 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
 import android.graphics.Bitmap;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.widget.ImageView;
 
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.util.ImageUtils;
 import com.mopub.mobileads.resource.DrawableConstants;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.ERROR;
 
 public class VastVideoBlurLastVideoFrameTask extends AsyncTask<String, Void, Boolean> {
 
@@ -62,7 +69,7 @@ public class VastVideoBlurLastVideoFrameTask extends AsyncTask<String, Void, Boo
 
             return true;
         } catch (Exception e) {
-            MoPubLog.d("Failed to blur last video frame", e);
+            MoPubLog.log(ERROR, "Failed to blur last video frame", e);
             return false;
         }
     }
@@ -83,7 +90,7 @@ public class VastVideoBlurLastVideoFrameTask extends AsyncTask<String, Void, Boo
 
     @Override
     protected void onCancelled() {
-        MoPubLog.d("VastVideoBlurLastVideoFrameTask was cancelled.");
+        MoPubLog.log(CUSTOM, "VastVideoBlurLastVideoFrameTask was cancelled.");
     }
 
     // for testing

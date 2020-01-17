@@ -1,9 +1,14 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.mopub.common.CacheService;
+import com.mopub.common.CreativeOrientation;
 import com.mopub.common.DataKeys;
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.util.Json;
@@ -14,24 +19,34 @@ import org.json.JSONObject;
 
 import java.util.Map;
 
+import static com.mopub.common.DataKeys.CREATIVE_ORIENTATION_KEY;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.LOAD_FAILED;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.LOAD_SUCCESS;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.SHOW_ATTEMPTED;
+import static com.mopub.common.logging.MoPubLog.AdapterLogEvent.CUSTOM;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.ERROR;
+
 class VastVideoInterstitial extends ResponseBodyInterstitial implements VastManager.VastManagerListener {
+    public static final String ADAPTER_NAME = VastVideoInterstitial.class.getSimpleName();
     private CustomEventInterstitialListener mCustomEventInterstitialListener;
     private String mVastResponse;
     private VastManager mVastManager;
     private VastVideoConfig mVastVideoConfig;
     @Nullable private JSONObject mVideoTrackers;
     @Nullable private Map<String, String> mExternalViewabilityTrackers;
+    @Nullable private CreativeOrientation mOrientation;
 
     @Override
     protected void extractExtras(Map<String, String> serverExtras) {
         mVastResponse = serverExtras.get(DataKeys.HTML_RESPONSE_BODY_KEY);
+        mOrientation = CreativeOrientation.fromString(serverExtras.get(CREATIVE_ORIENTATION_KEY));
 
         final String externalViewabilityTrackers =
                 serverExtras.get(DataKeys.EXTERNAL_VIDEO_VIEWABILITY_TRACKERS_KEY);
         try {
             mExternalViewabilityTrackers = Json.jsonStringToMap(externalViewabilityTrackers);
         } catch (JSONException e) {
-            MoPubLog.d("Failed to parse video viewability trackers to JSON: " +
+            MoPubLog.log(CUSTOM, "Failed to parse video viewability trackers to JSON: " +
                     externalViewabilityTrackers);
         }
 
@@ -42,7 +57,7 @@ class VastVideoInterstitial extends ResponseBodyInterstitial implements VastMana
         try {
             mVideoTrackers = new JSONObject(videoTrackers);
         } catch (JSONException e) {
-            MoPubLog.d("Failed to parse video trackers to JSON: " + videoTrackers, e);
+            MoPubLog.log(ERROR, "Failed to parse video trackers to JSON: " + videoTrackers, e);
             mVideoTrackers = null;
         }
     }
@@ -52,6 +67,9 @@ class VastVideoInterstitial extends ResponseBodyInterstitial implements VastMana
         mCustomEventInterstitialListener = customEventInterstitialListener;
 
         if (!CacheService.initializeDiskCache(mContext)) {
+            MoPubLog.log(LOAD_FAILED, ADAPTER_NAME,
+                    MoPubErrorCode.VIDEO_CACHE_ERROR.getIntCode(),
+                    MoPubErrorCode.VIDEO_CACHE_ERROR);
             mCustomEventInterstitialListener.onInterstitialFailed(MoPubErrorCode.VIDEO_CACHE_ERROR);
             return;
         }
@@ -59,11 +77,13 @@ class VastVideoInterstitial extends ResponseBodyInterstitial implements VastMana
         mVastManager = VastManagerFactory.create(mContext);
         mVastManager.prepareVastVideoConfiguration(mVastResponse, this,
                 mAdReport.getDspCreativeId(), mContext);
+        MoPubLog.log(LOAD_SUCCESS, ADAPTER_NAME);
     }
 
     @Override
     public void showInterstitial() {
-        MraidVideoPlayerActivity.startVast(mContext, mVastVideoConfig, mBroadcastIdentifier);
+        MoPubLog.log(SHOW_ATTEMPTED, ADAPTER_NAME);
+        MraidVideoPlayerActivity.startVast(mContext, mVastVideoConfig, mBroadcastIdentifier, mOrientation);
     }
 
     @Override

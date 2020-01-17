@@ -1,22 +1,29 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.app.Activity;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.mopub.common.Preconditions;
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
+import com.mopub.common.VisibilityTracker;
 import com.mopub.nativeads.MoPubNativeAdPositioning.MoPubClientPositioning;
 import com.mopub.nativeads.MoPubNativeAdPositioning.MoPubServerPositioning;
 
 import java.util.List;
 import java.util.WeakHashMap;
 
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 import static com.mopub.nativeads.MoPubRecyclerAdapter.ContentChangeStrategy.INSERT_AT_END;
 import static com.mopub.nativeads.MoPubRecyclerAdapter.ContentChangeStrategy.KEEP_ADS_FIXED;
 
@@ -270,13 +277,13 @@ public final class MoPubRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
     public void refreshAds(@NonNull String adUnitId,
             @Nullable RequestParameters requestParameters) {
         if (mRecyclerView == null) {
-            MoPubLog.w("This adapter is not attached to a RecyclerView and cannot be refreshed.");
+            MoPubLog.log(CUSTOM, "This adapter is not attached to a RecyclerView and cannot be refreshed.");
             return;
         }
 
         final RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
         if (layoutManager == null) {
-            MoPubLog.w("Can't refresh ads when there is no layout manager on a RecyclerView.");
+            MoPubLog.log(CUSTOM, "Can't refresh ads when there is no layout manager on a RecyclerView.");
             return;
         }
 
@@ -315,7 +322,7 @@ public final class MoPubRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
 
             loadAds(adUnitId, requestParameters);
         } else {
-            MoPubLog.w("This LayoutManager can't be refreshed.");
+            MoPubLog.log(CUSTOM, "This LayoutManager can't be refreshed.");
         }
     }
 
@@ -399,7 +406,7 @@ public final class MoPubRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             // Create the view and a view holder.
             final MoPubAdRenderer adRenderer = mStreamAdPlacer.getAdRendererForViewType(viewType - NATIVE_AD_VIEW_TYPE_BASE);
             if (adRenderer == null) {
-                MoPubLog.w("No view binder was registered for ads in MoPubRecyclerAdapter.");
+                MoPubLog.log(CUSTOM, "No view binder was registered for ads in MoPubRecyclerAdapter.");
                 // This will cause a null pointer exception.
                 return null;
             }
@@ -455,7 +462,7 @@ public final class MoPubRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
      * Returns a stable negative item ID for ad items & calls getItemId on your original adapter for
      * non-ad items.
      *
-     * Returns {@link android.support.v7.widget.RecyclerView#NO_ID} if your original adapter does
+     * Returns {@link androidx.recyclerview.widget.RecyclerView#NO_ID} if your original adapter does
      * not have stable IDs.
      *
      * @inheritDoc

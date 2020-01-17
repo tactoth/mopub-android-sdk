@@ -1,10 +1,14 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.network;
 
 
 import android.content.Context;
 import android.os.Handler;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.mopub.common.AdFormat;
@@ -17,6 +21,10 @@ import com.mopub.volley.Response;
 import com.mopub.volley.VolleyError;
 
 import java.lang.ref.WeakReference;
+
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.REQUESTED;
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.RESPONSE_RECEIVED;
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.CUSTOM;
 
 /**
  * AdLoader implements several simple functions: communicate with Volley to download multiple ads
@@ -76,6 +84,8 @@ public class AdLoader {
         mAdListener = new MultiAdRequest.Listener() {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
+                MoPubLog.log(RESPONSE_RECEIVED, volleyError.getMessage());
+
                 mFailed = true;
                 mRunning = false;
                 deliverError(volleyError);
@@ -133,6 +143,7 @@ public class AdLoader {
         if (mRunning) {
             return mMultiAdRequest;
         }
+
         if (mFailed) {
             // call back using handler to make sure it is always async.
             mHandler.post(new Runnable() {
@@ -145,9 +156,22 @@ public class AdLoader {
         }
 
         synchronized (lock) {
+
             // not running and not failed: start it for the first time
             if (mMultiAdResponse == null) {
-                return fetchAd(mMultiAdRequest, mContext.get());
+                if (RequestRateTracker.getInstance().isBlockedByRateLimit(mMultiAdRequest.mAdUnitId)) {
+                    // report no fill
+                    MoPubLog.log(MoPubLog.SdkLogEvent.CUSTOM, mMultiAdRequest.mAdUnitId + " is blocked by request rate limiting.");
+                    mHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            deliverError(new MoPubNetworkError(MoPubNetworkError.Reason.NO_FILL));
+                        }
+                    });
+                    return null;
+                } else {
+                    return fetchAd(mMultiAdRequest, mContext.get()); // first request
+                }
             }
 
             // report creative download error to the server
@@ -199,33 +223,35 @@ public class AdLoader {
         mContentDownloaded = true;
 
         if (null == mDownloadTracker) {
-            MoPubLog.e("Response analytics should not be null here");
+            MoPubLog.log(CUSTOM, "Response analytics should not be null here");
             return;
         }
 
         Context context = mContext.get();
         if (null == context || null == mLastDeliveredResponse) {
-            MoPubLog.w("Cannot send 'x-after-load-url' analytics.");
+            MoPubLog.log(CUSTOM, "Cannot send 'x-after-load-url' analytics.");
             return;
         }
 
         mDownloadTracker.reportAfterLoad(context, null);
+        mDownloadTracker.reportAfterLoadSuccess(context);
     }
 
     private void creativeDownloadFailed(@Nullable final MoPubError errorCode) {
         if (null == errorCode) {
-            MoPubLog.w("Must provide error code to report creative download error");
+            MoPubLog.log(CUSTOM, "Must provide error code to report creative download error");
             return;
         }
 
         Context context = mContext.get();
         if (null == context || null == mLastDeliveredResponse) {
-            MoPubLog.w("Cannot send creative mFailed analytics.");
+            MoPubLog.log(CUSTOM, "Cannot send creative mFailed analytics.");
             return;
         }
 
         if (mDownloadTracker != null) {
             mDownloadTracker.reportAfterLoad(context, errorCode);
+            mDownloadTracker.reportAfterLoadFail(context, errorCode);
         }
     }
 
@@ -244,6 +270,12 @@ public class AdLoader {
         if (context == null) {
             return null;
         }
+
+        String bodyString = "<no body>";
+        if (request.getBody() != null) {
+            bodyString = new String(request.getBody());
+        }
+        MoPubLog.log(REQUESTED, request.getUrl(), bodyString);
 
         mRunning = true;
         RequestQueue requestQueue = Networking.getRequestQueue(context);

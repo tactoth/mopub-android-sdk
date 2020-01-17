@@ -1,7 +1,11 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mobileads;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.Preconditions;
 import com.mopub.common.logging.MoPubLog;
@@ -13,6 +17,8 @@ import org.w3c.dom.Node;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
 
 /**
  * This XML manager handles the meta data around the video file. This includes video progress
@@ -112,7 +118,7 @@ class VastLinearXmlManager {
                                     trackingFraction));
                         }
                     } catch (NumberFormatException e) {
-                        MoPubLog.d(String.format("Failed to parse VAST progress tracker %s",
+                        MoPubLog.log(CUSTOM, String.format("Failed to parse VAST progress tracker %s",
                                 offsetString));
                     }
                 }
@@ -171,7 +177,7 @@ class VastLinearXmlManager {
                             trackers.add(new VastAbsoluteProgressTracker(trackingUrl, trackingMilliseconds));
                         }
                     } catch (NumberFormatException e) {
-                        MoPubLog.d(String.format("Failed to parse VAST progress tracker %s",
+                        MoPubLog.log(CUSTOM, String.format("Failed to parse VAST progress tracker %s",
                                 offsetString));
                     }
                 }

@@ -1,22 +1,35 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import android.text.TextUtils;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.privacy.PersonalInfoManager;
 import com.mopub.common.util.Reflection;
+import com.mopub.network.Networking;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 
 import static com.mopub.common.ExternalViewabilitySessionManager.ViewabilityVendor;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.CUSTOM;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.ERROR;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.INIT_FINISHED;
+import static com.mopub.common.logging.MoPubLog.SdkLogEvent.INIT_STARTED;
 
 public class MoPub {
-    public static final String SDK_VERSION = "5.3.0";
+    public static final String SDK_VERSION = "5.10.0";
 
     public enum LocationAwareness { NORMAL, TRUNCATED, DISABLED }
 
@@ -56,37 +69,29 @@ public class MoPub {
     private static final String MOPUB_REWARDED_VIDEO_MANAGER =
             "com.mopub.mobileads.MoPubRewardedVideoManager";
 
-    private static final int DEFAULT_LOCATION_PRECISION = 6;
-    private static final long DEFAULT_LOCATION_REFRESH_TIME_MILLIS = 60 * 1000;
-
-    @NonNull private static volatile LocationAwareness sLocationAwareness = LocationAwareness.NORMAL;
-    private static volatile int sLocationPrecision = DEFAULT_LOCATION_PRECISION;
-    private static volatile long sMinimumLocationRefreshTimeMillis = DEFAULT_LOCATION_REFRESH_TIME_MILLIS;
     @NonNull private static volatile BrowserAgent sBrowserAgent = BrowserAgent.IN_APP;
     private static volatile boolean sIsBrowserAgentOverriddenByClient = false;
     private static boolean sSearchedForUpdateActivityMethod = false;
     @Nullable private static Method sUpdateActivityMethod;
-    private static boolean sAdvancedBiddingEnabled = true;
     private static boolean sSdkInitialized = false;
     private static boolean sSdkInitializing = false;
-    private static AdvancedBiddingTokens sAdvancedBiddingTokens;
+    private static AdapterConfigurationManager sAdapterConfigurationManager;
     private static PersonalInfoManager sPersonalInfoManager;
 
     @NonNull
     public static LocationAwareness getLocationAwareness() {
-        Preconditions.checkNotNull(sLocationAwareness);
 
-        return sLocationAwareness;
+        return LocationService.getInstance().getLocationAwareness();
     }
 
     public static void setLocationAwareness(@NonNull final LocationAwareness locationAwareness) {
         Preconditions.checkNotNull(locationAwareness);
 
-        sLocationAwareness = locationAwareness;
+        LocationService.getInstance().setLocationAwareness(locationAwareness);
     }
 
     public static int getLocationPrecision() {
-        return sLocationPrecision;
+        return LocationService.getInstance().getLocationPrecision();
     }
 
     /**
@@ -94,16 +99,16 @@ public class MoPub {
      * to {@link com.mopub.common.MoPub.LocationAwareness#TRUNCATED}.
      */
     public static void setLocationPrecision(int precision) {
-        sLocationPrecision = Math.min(Math.max(0, precision), DEFAULT_LOCATION_PRECISION);
+        LocationService.getInstance().setLocationPrecision(precision);
     }
 
     public static void setMinimumLocationRefreshTimeMillis(
             final long minimumLocationRefreshTimeMillis) {
-        sMinimumLocationRefreshTimeMillis = minimumLocationRefreshTimeMillis;
+        LocationService.getInstance().setMinimumLocationRefreshTimeMillis(minimumLocationRefreshTimeMillis);
     }
 
     public static long getMinimumLocationRefreshTimeMillis() {
-        return sMinimumLocationRefreshTimeMillis;
+        return LocationService.getInstance().getMinimumLocationRefreshTimeMillis();
     }
 
     public static void setBrowserAgent(@NonNull final BrowserAgent browserAgent) {
@@ -118,7 +123,7 @@ public class MoPub {
         Preconditions.checkNotNull(adServerBrowserAgent);
 
         if (sIsBrowserAgentOverriddenByClient) {
-            MoPubLog.w("Browser agent already overridden by client with value " + sBrowserAgent);
+            MoPubLog.log(CUSTOM, "Browser agent already overridden by client with value " + sBrowserAgent);
         } else {
             sBrowserAgent = adServerBrowserAgent;
         }
@@ -131,12 +136,28 @@ public class MoPub {
         return sBrowserAgent;
     }
 
-    public static void setAdvancedBiddingEnabled(final boolean advancedBiddingEnabled) {
-        sAdvancedBiddingEnabled = advancedBiddingEnabled;
+    /**
+     * Set optional application engine information, for example {'unity', "123"}
+     *
+     * @param engineInfo {@link com.mopub.common.AppEngineInfo}
+     */
+    public static void setEngineInformation(@NonNull final AppEngineInfo engineInfo) {
+        Preconditions.checkNotNull(engineInfo);
+
+        if (!TextUtils.isEmpty(engineInfo.mName) && !TextUtils.isEmpty(engineInfo.mVersion)) {
+            BaseUrlGenerator.setAppEngineInfo(engineInfo);
+        }
     }
 
-    public static boolean isAdvancedBiddingEnabled() {
-        return sAdvancedBiddingEnabled;
+    /**
+     * Sets the wrapper version. This is not meant for publisher use.
+     *
+     * @param wrapperVersion The wrapper version number.
+     */
+    public static void setWrapperVersion(@NonNull final String wrapperVersion) {
+        Preconditions.checkNotNull(wrapperVersion);
+
+        BaseUrlGenerator.setWrapperVersion(wrapperVersion);
     }
 
     /**
@@ -156,50 +177,53 @@ public class MoPub {
         Preconditions.checkNotNull(context);
         Preconditions.checkNotNull(sdkConfiguration);
 
-        // This also initializes MoPubLog
-        MoPubLog.d("Initializing MoPub with ad unit: " + sdkConfiguration.getAdUnitId());
+        MoPubLog.setLogLevel(sdkConfiguration.getLogLevel());
 
-        if (context instanceof Activity && Reflection.classFound(MOPUB_REWARDED_VIDEO_MANAGER)) {
+        MoPubLog.log(INIT_STARTED);
+        MoPubLog.log(CUSTOM, "SDK initialize has been called with ad unit: " + sdkConfiguration.getAdUnitId());
+
+        if (context instanceof Activity) {
             final Activity activity = (Activity) context;
             initializeRewardedVideo(activity, sdkConfiguration);
         }
 
         if (sSdkInitialized) {
-            MoPubLog.d("MoPub SDK is already initialized");
+            MoPubLog.log(CUSTOM, "MoPub SDK is already initialized");
+            initializationFinished(sdkInitializationListener);
             return;
         }
         if (sSdkInitializing) {
-            MoPubLog.d("MoPub SDK is currently initializing.");
+            MoPubLog.log(CUSTOM, "MoPub SDK is currently initializing.");
             return;
         }
 
         if (Looper.getMainLooper() != Looper.myLooper()) {
-            MoPubLog.e("MoPub can only be initialized on the main thread.");
+            MoPubLog.log(CUSTOM, "MoPub can only be initialized on the main thread.");
             return;
         }
 
         sSdkInitializing = true;
 
-        final SdkInitializationListener internalSdkInitializationListener = new SdkInitializationListener() {
-            @Override
-            public void onInitializationFinished() {
-                sSdkInitializing = false;
-                sSdkInitialized = true;
-                if (sdkInitializationListener != null) {
-                    sdkInitializationListener.onInitializationFinished();
-                }
-            }
-        };
+        // Guarantees initialization of the request queue on the main thread.
+        Networking.getRequestQueue(context);
+
+        final InternalSdkInitializationListener internalSdkInitializationListener =
+                new InternalSdkInitializationListener(sdkInitializationListener);
+
         final SdkInitializationListener compositeSdkInitializationListener =
                 new CompositeSdkInitializationListener(internalSdkInitializationListener, 2);
 
         sPersonalInfoManager = new PersonalInfoManager(context, sdkConfiguration.getAdUnitId(),
                 compositeSdkInitializationListener);
+        sPersonalInfoManager.setAllowLegitimateInterest(sdkConfiguration.getLegitimateInterestAllowed());
 
         ClientMetadata.getInstance(context);
 
-        sAdvancedBiddingTokens = new AdvancedBiddingTokens(compositeSdkInitializationListener);
-        sAdvancedBiddingTokens.addAdvancedBidders(sdkConfiguration.getAdvancedBidders());
+        sAdapterConfigurationManager = new AdapterConfigurationManager(compositeSdkInitializationListener);
+        sAdapterConfigurationManager.initialize(context,
+                sdkConfiguration.getAdapterConfigurationClasses(),
+                sdkConfiguration.getMediatedNetworkConfigurations(),
+                sdkConfiguration.getMoPubRequestOptions());
     }
 
     /**
@@ -218,14 +242,35 @@ public class MoPub {
         return sPersonalInfoManager != null && sPersonalInfoManager.canCollectPersonalInformation();
     }
 
+    /**
+     * Set the allowance of legitimate interest.
+     * This API can be used if you want to allow supported SDK networks to collect user information on the basis of legitimate interest.
+     *
+     * @param allowed should be true if legitimate interest is allowed. False if it isn't allowed.
+     */
+    public static void setAllowLegitimateInterest(final boolean allowed) {
+        if (sPersonalInfoManager != null) {
+            sPersonalInfoManager.setAllowLegitimateInterest(allowed);
+        }
+    }
+
+    /**
+     * Check this to see if legitimate interest is allowed.
+     *
+     * @return True if allowed, false otherwise.
+     */
+    public static boolean shouldAllowLegitimateInterest() {
+        return sPersonalInfoManager != null && sPersonalInfoManager.shouldAllowLegitimateInterest();
+    }
+
     @Nullable
     static String getAdvancedBiddingTokensJson(@NonNull final Context context) {
         Preconditions.checkNotNull(context);
 
-        if (!isAdvancedBiddingEnabled() || sAdvancedBiddingTokens == null) {
+        if (sAdapterConfigurationManager == null) {
             return null;
         }
-        return sAdvancedBiddingTokens.getTokensAsJsonString(context);
+        return sAdapterConfigurationManager.getTokensAsJsonString(context);
     }
 
     /**
@@ -294,6 +339,15 @@ public class MoPub {
         vendor.disable();
     }
 
+    @Nullable
+    public static List<String> getAdapterConfigurationInfo() {
+        final AdapterConfigurationManager configurationManager = sAdapterConfigurationManager;
+        if (configurationManager != null) {
+            return configurationManager.getAdapterConfigurationInfo();
+        }
+        return null;
+    }
+
     private static void initializeRewardedVideo(@NonNull Activity activity, @NonNull SdkConfiguration sdkConfiguration) {
         Preconditions.checkNotNull(activity);
         Preconditions.checkNotNull(sdkConfiguration);
@@ -305,11 +359,43 @@ public class MoPub {
                     .addParam(Activity.class, activity)
                     .addParam(SdkConfiguration.class, sdkConfiguration).execute();
         } catch (ClassNotFoundException e) {
-            MoPubLog.w("initializeRewardedVideo was called without the rewarded video module");
+            MoPubLog.log(CUSTOM, "initializeRewardedVideo was called without the rewarded video module");
         } catch (NoSuchMethodException e) {
-            MoPubLog.w("initializeRewardedVideo was called without the rewarded video module");
+            MoPubLog.log(CUSTOM, "initializeRewardedVideo was called without the rewarded video module");
         } catch (Exception e) {
-            MoPubLog.e("Error while initializing rewarded video", e);
+            MoPubLog.log(ERROR, "Error while initializing rewarded video", e);
+        }
+    }
+
+    private static void initializationFinished(@Nullable final SdkInitializationListener sdkInitializationListener) {
+        sSdkInitializing = false;
+        sSdkInitialized = true;
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (sdkInitializationListener != null) {
+                    sdkInitializationListener.onInitializationFinished();
+                }
+            }
+        });
+    }
+
+    private static class InternalSdkInitializationListener implements SdkInitializationListener {
+        @Nullable
+        private SdkInitializationListener mSdkInitializationListener;
+
+        InternalSdkInitializationListener(@Nullable SdkInitializationListener sdkInitializationListener) {
+            mSdkInitializationListener = sdkInitializationListener;
+        }
+
+        @Override
+        public void onInitializationFinished() {
+            final AdapterConfigurationManager adapterConfigurationManager = sAdapterConfigurationManager;
+            if (adapterConfigurationManager != null) {
+                MoPubLog.log(INIT_FINISHED, adapterConfigurationManager.getAdapterConfigurationInfo());
+            }
+            initializationFinished(mSdkInitializationListener);
+            mSdkInitializationListener = null;
         }
     }
 
@@ -333,10 +419,10 @@ public class MoPub {
             try {
                 sUpdateActivityMethod.invoke(null, activity);
             } catch (IllegalAccessException e) {
-                MoPubLog.e("Error while attempting to access the update activity method - this " +
+                MoPubLog.log(ERROR, "Error while attempting to access the update activity method - this " +
                         "should not have happened", e);
             } catch (InvocationTargetException e) {
-                MoPubLog.e("Error while attempting to access the update activity method - this " +
+                MoPubLog.log(ERROR, "Error while attempting to access the update activity method - this " +
                         "should not have happened", e);
             }
         }
@@ -344,10 +430,11 @@ public class MoPub {
 
     @Deprecated
     @VisibleForTesting
-    static void clearAdvancedBidders() {
-        sAdvancedBiddingTokens = null;
+    static void resetMoPub() {
+        sAdapterConfigurationManager = null;
         sPersonalInfoManager = null;
         sSdkInitialized = false;
+        sSdkInitializing = false;
     }
 
     @Deprecated

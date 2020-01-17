@@ -1,8 +1,12 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.nativeads;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.mopub.common.AdFormat;
@@ -25,6 +29,10 @@ import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.CUSTOM;
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.LOAD_ATTEMPTED;
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.LOAD_FAILED;
+import static com.mopub.common.logging.MoPubLog.AdLogEvent.LOAD_SUCCESS;
 import static com.mopub.nativeads.CustomEventNative.CustomEventNativeListener;
 import static com.mopub.nativeads.NativeErrorCode.CONNECTION_ERROR;
 import static com.mopub.nativeads.NativeErrorCode.EMPTY_AD_RESPONSE;
@@ -163,6 +171,8 @@ public class MoPubNative {
             return;
         }
 
+        MoPubLog.log(LOAD_ATTEMPTED);
+
         final NativeUrlGenerator generator = new NativeUrlGenerator(context)
                 .withAdUnitId(mAdUnitId)
                 .withRequest(requestParameters);
@@ -174,7 +184,7 @@ public class MoPubNative {
         final String endpointUrl = generator.generateUrlString(Constants.HOST);
 
         if (endpointUrl != null) {
-            MoPubLog.d("MoPubNative Loading ad from: " + endpointUrl);
+            MoPubLog.log(CUSTOM, "MoPubNative Loading ad from: " + endpointUrl);
         }
 
         requestNativeAd(endpointUrl, null);
@@ -206,7 +216,7 @@ public class MoPubNative {
                 new CustomEventNativeListener() {
                     @Override
                     public void onNativeAdLoaded(@NonNull final BaseNativeAd nativeAd) {
-                        MoPubLog.w("MoPubNative.onNativeAdLoaded " + mNativeAdapter);
+                        MoPubLog.log(LOAD_SUCCESS);
                         mNativeAdapter = null;
 
                         final Context context = getContextOrDestroy();
@@ -225,8 +235,7 @@ public class MoPubNative {
                         }
 
                         mMoPubNativeNetworkListener.onNativeLoad(new NativeAd(context,
-                                        response.getImpressionTrackingUrls(),
-                                        response.getClickTrackingUrl(),
+                                        response,
                                         mAdUnitId,
                                         nativeAd,
                                         renderer)
@@ -235,14 +244,14 @@ public class MoPubNative {
 
                     @Override
                     public void onNativeAdFailed(final NativeErrorCode errorCode) {
-                        MoPubLog.v(String.format("Native Ad failed to load with error: %s.", errorCode));
+                        MoPubLog.log(LOAD_FAILED, errorCode.getIntCode(), errorCode.toString());
                         mNativeAdapter = null;
                         requestNativeAd("", errorCode);
                     }
                 };
 
         if (mNativeAdapter != null) {
-            MoPubLog.w("Native adapter is not null.");
+            MoPubLog.log(CUSTOM, "Native adapter is not null.");
             mNativeAdapter.stopLoading();
         }
 
@@ -255,7 +264,7 @@ public class MoPubNative {
 
     @VisibleForTesting
     void onAdError(@NonNull final VolleyError volleyError) {
-        MoPubLog.d("Native ad request failed.", volleyError);
+        MoPubLog.log(CUSTOM, "Native ad request failed.", volleyError);
         if (volleyError instanceof MoPubNetworkError) {
             MoPubNetworkError error = (MoPubNetworkError) volleyError;
             switch (error.getReason()) {
@@ -268,7 +277,7 @@ public class MoPubNative {
                 case WARMING_UP:
                     // Used for the sample app to signal a toast.
                     // This is not customer-facing except in the sample app.
-                    MoPubLog.c(MoPubErrorCode.WARMUP.toString());
+                    MoPubLog.log(CUSTOM, MoPubErrorCode.WARMUP);
                     mMoPubNativeNetworkListener.onNativeFail(EMPTY_AD_RESPONSE);
                     return;
                 case NO_FILL:
@@ -285,7 +294,7 @@ public class MoPubNative {
             if (response != null && response.statusCode >= 500 && response.statusCode < 600) {
                 mMoPubNativeNetworkListener.onNativeFail(SERVER_ERROR_RESPONSE_CODE);
             } else if (response == null && MopubConfig.CHECK_NETWORK_AVAILABLE && !DeviceUtils.isNetworkAvailable(mContext.get())) {
-                MoPubLog.c(String.valueOf(MoPubErrorCode.NO_CONNECTION.toString()));
+                MoPubLog.log(CUSTOM, MoPubErrorCode.NO_CONNECTION);
                 mMoPubNativeNetworkListener.onNativeFail(CONNECTION_ERROR);
             } else {
                 mMoPubNativeNetworkListener.onNativeFail(UNSPECIFIED);
@@ -299,7 +308,7 @@ public class MoPubNative {
         final Context context = mContext.get();
         if (context == null) {
             destroy();
-            MoPubLog.d("Weak reference to Context in MoPubNative became null. This instance" +
+            MoPubLog.log(CUSTOM, "Weak reference to Context in MoPubNative became null. This instance" +
                     " of MoPubNative is destroyed and No more requests will be processed.");
         }
         return context;

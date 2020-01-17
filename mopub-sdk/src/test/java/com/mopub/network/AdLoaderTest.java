@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.network;
 
 import android.app.Activity;
@@ -6,7 +10,6 @@ import android.content.Context;
 import com.mopub.common.AdFormat;
 import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.common.util.ResponseHeader;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.volley.NetworkResponse;
 import com.mopub.volley.Request;
 import com.mopub.volley.RequestQueue;
@@ -21,7 +24,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLooper;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -31,18 +34,22 @@ import java.util.Map;
 
 import static com.mopub.mobileads.MoPubErrorCode.UNSPECIFIED;
 import static org.fest.assertions.api.Assertions.assertThat;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class)
 public class AdLoaderTest {
     private static final String CONTENT_TYPE = "text/html; charset=UTF-8";
     private static final String IMPTRACKER_URL = "imptracker_url";
     private static final String BEFORE_LOAD_URL = "before_load_url";
     private static final String AFTER_LOAD_URL = "after_load_url";
+    private static final String AFTER_LOAD_SUCCESS_URL = "after_load_success_url";
+    private static final String AFTER_LOAD_FAIL_URL = "after_load_fail_url";
     private static final int REFRESH_TIME = 15;
     private static final int HEIGHT = 50;
     private static final int WIDTH = 320;
@@ -72,6 +79,7 @@ public class AdLoaderTest {
 
     @After
     public void teardown() {
+        RequestRateTrackerTest.clearRequestRateTracker();
     }
 
     @Test
@@ -124,7 +132,47 @@ public class AdLoaderTest {
     }
 
     @Test
-    public void loadNextAd_whenFailed_callsHandler_OnErrorresponse() throws NoSuchFieldException, IllegalAccessException {
+    public void loadNextAd_firstCall_whenBlockedByRequestRateLimit_makesNoReqeust_returnsNull() {
+        RequestRateTrackerTest.prepareRequestRateTracker(adUnitId, 100, "reason");
+
+        Request<?> request = subject.loadNextAd(null);
+
+        assertNull(request);
+        verify(mockListener).onErrorResponse(any(VolleyError.class));
+        RequestQueue requestQueue = Networking.getRequestQueue();
+        verify(requestQueue, never()).add(any(Request.class));
+    }
+
+    @Test
+    public void twoAdResponseWaterfall_whenBlockedAfterFirstRequest_shouldNotBlockSecondRequest()
+            throws JSONException, MoPubNetworkError, NoSuchFieldException, IllegalAccessException {
+        JSONObject adResponseJson1 = createAdResponseJson("trackingUrl1", "content_1");
+        JSONObject adResponseJson2 = createAdResponseJson("trackingUrl2", "content_2");
+        byte[] body = createResponseBody(null, new JSONObject[]{adResponseJson1, adResponseJson2});
+        NetworkResponse testResponse = new NetworkResponse(200, body, headers, false);
+        MultiAdResponse multiAdResponse = new MultiAdResponse(activity, testResponse, AdFormat.BANNER, adUnitId);
+
+        // set subject MultiAdResponse
+        Field field = getPrivateField("mMultiAdResponse");
+        field.set(subject, multiAdResponse);
+
+        // validation
+        assertThat(subject.hasMoreAds()).isTrue();
+        subject.loadNextAd(null);
+        verify(mockListener, times(1)).onSuccess(any(AdResponse.class));
+        assertThat(subject.hasMoreAds()).isTrue();
+
+        RequestRateTrackerTest.prepareRequestRateTracker(adUnitId, 100, "reason");
+        Request<?> request = subject.loadNextAd(UNSPECIFIED);
+
+        assertNotNull(request);
+        verify(mockListener, times(2)).onSuccess(any(AdResponse.class));
+        verify(mockListener, never()).onErrorResponse(any(VolleyError.class));
+        assertThat(subject.hasMoreAds()).isFalse();
+    }
+
+    @Test
+    public void loadNextAd_whenFailed_callsHandler_OnErrorResponse() throws NoSuchFieldException, IllegalAccessException {
         // set AdLoader.failed=true;
         Field field = getPrivateField("mFailed");
         field.setBoolean(subject, true);
@@ -279,6 +327,8 @@ public class AdLoaderTest {
         metadata.put(ResponseHeader.IMPRESSION_URL.getKey(), IMPTRACKER_URL);
         metadata.put(ResponseHeader.BEFORE_LOAD_URL.getKey(), BEFORE_LOAD_URL);
         metadata.put(ResponseHeader.AFTER_LOAD_URL.getKey(), AFTER_LOAD_URL);
+        metadata.put(ResponseHeader.AFTER_LOAD_SUCCESS_URL.getKey(), AFTER_LOAD_SUCCESS_URL);
+        metadata.put(ResponseHeader.AFTER_LOAD_FAIL_URL.getKey(), AFTER_LOAD_FAIL_URL);
         metadata.put(ResponseHeader.REFRESH_TIME.getKey(), REFRESH_TIME);
         metadata.put(ResponseHeader.HEIGHT.getKey(), HEIGHT);
         metadata.put(ResponseHeader.WIDTH.getKey(), WIDTH);

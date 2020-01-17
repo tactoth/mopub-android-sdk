@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common.privacy;
 
 import android.app.Activity;
@@ -5,8 +9,8 @@ import android.content.Context;
 import android.os.SystemClock;
 
 import com.mopub.common.ClientMetadata;
+import com.mopub.common.MoPub;
 import com.mopub.common.test.support.SdkTestRunner;
-import com.mopub.mobileads.BuildConfig;
 import com.mopub.network.MoPubRequestQueue;
 import com.mopub.network.MoPubRequestQueueTest;
 import com.mopub.network.Networking;
@@ -22,7 +26,6 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 
 import static org.fest.assertions.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
@@ -33,8 +36,7 @@ import static org.mockito.Mockito.when;
 
 @RunWith(SdkTestRunner.class)
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.json.*"})
-@Config(constants = BuildConfig.class)
-@PrepareForTest({ClientMetadata.class, Networking.class, AdvertisingId.class})
+@PrepareForTest({ClientMetadata.class, Networking.class, AdvertisingId.class, MoPub.class})
 public class PersonalInfoManagerTest {
 
     private static int DEFAULT_TIME_MS = 300000;
@@ -73,10 +75,14 @@ public class PersonalInfoManagerTest {
         when(Networking.getRequestQueue(any(Context.class))).thenReturn(mockRequestQueue);
         when(Networking.getScheme()).thenReturn("https");
 
+        PowerMockito.mockStatic(MoPub.class);
+        when(MoPub.isSdkInitialized()).thenReturn(true);
+
         subject = new PersonalInfoManager(activity, "adunit", null);
         personalInfoData = subject.getPersonalInfoData();
         mockConsentStatusChangeListener = mock(ConsentStatusChangeListener.class);
         subject.subscribeConsentStatusChangeListener(mockConsentStatusChangeListener);
+        personalInfoData.setLastChangedMs("old_time");
     }
 
     @After
@@ -121,6 +127,24 @@ public class PersonalInfoManagerTest {
         final boolean actual = subject.shouldShowConsentDialog();
 
         assertThat(actual).isFalse();
+    }
+
+    @Test
+    public void shouldAllowLegitimateInterest_withLegitimateInterestAllowedFalse_shouldReturnFalse() {
+        subject.setAllowLegitimateInterest(false);
+
+        final boolean actual = subject.shouldAllowLegitimateInterest();
+
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    public void shouldAllowLegitimateInterest_withLegitimateInterestAllowedTrue_shouldReturnTrue() {
+        subject.setAllowLegitimateInterest(true);
+
+        final boolean actual = subject.shouldAllowLegitimateInterest();
+
+        assertThat(actual).isTrue();
     }
 
     @Test
@@ -341,6 +365,7 @@ public class PersonalInfoManagerTest {
         assertThat(subject.getPersonalInfoConsentStatus()).isEqualTo(ConsentStatus.EXPLICIT_YES);
         assertThat(personalInfoData.getConsentChangeReason()).isEqualTo(
                 ConsentChangeReason.GRANTED_BY_USER.getReason());
+        assertThat(personalInfoData.getLastChangedMs()).isNotEqualTo("old_time");
         verify(mockConsentStatusChangeListener).onConsentStateChange(ConsentStatus.UNKNOWN,
                 ConsentStatus.EXPLICIT_YES, true);
     }
@@ -355,6 +380,7 @@ public class PersonalInfoManagerTest {
         assertThat(subject.getPersonalInfoConsentStatus()).isEqualTo(ConsentStatus.EXPLICIT_NO);
         assertThat(personalInfoData.getConsentChangeReason()).isEqualTo(
                 ConsentChangeReason.DENIED_BY_USER.getReason());
+        assertThat(personalInfoData.getLastChangedMs()).isNotEqualTo("old_time");
         verify(mockConsentStatusChangeListener).onConsentStateChange(ConsentStatus.UNKNOWN,
                 ConsentStatus.EXPLICIT_NO, false);
     }
@@ -589,6 +615,35 @@ public class PersonalInfoManagerTest {
     }
 
     @Test
+    public void requestSync_withSdkInitialized_withShouldMakeSyncRequestTrue_shouldAddSyncRequestToRequestQueue() {
+        personalInfoData.setGdprApplies(true);
+
+        subject.requestSync(true);
+
+        verify(mockRequestQueue).add(any(SyncRequest.class));
+    }
+
+    @Test
+    public void requestSync_withSdkNotInitialized_shouldDoNothing() {
+        personalInfoData.setGdprApplies(true);
+        when(MoPub.isSdkInitialized()).thenReturn(false);
+
+        subject.requestSync(true);
+
+        verifyZeroInteractions(mockRequestQueue);
+    }
+
+    @Test
+    public void requestSyncNoParams_withSdkNotInitialized_shouldAddSyncRequestToRequestQueue() {
+        personalInfoData.setGdprApplies(true);
+        when(MoPub.isSdkInitialized()).thenReturn(false);
+
+        subject.requestSync();
+
+        verify(mockRequestQueue).add(any(SyncRequest.class));
+    }
+
+    @Test
     public void serverOverrideListener_onForceExplicitNo_withNullMessage_shouldChangeStatusToNo() {
         personalInfoData.setGdprApplies(true);
 
@@ -685,6 +740,24 @@ public class PersonalInfoManagerTest {
     }
 
     @Test
+    public void serverOverrideListener_onRequestSuccess_withNoCachedAdUnit_shouldSetAdUnit() {
+        personalInfoData.setAdUnit("");
+
+        subject.getServerOverrideListener().onRequestSuccess("newAdUnit");
+
+        assertThat(personalInfoData.getAdUnitId()).isEqualTo("newAdUnit");
+    }
+
+    @Test
+    public void serverOverrideListener_onRequestSuccess_withCachedAdUnit_shouldDoNothing() {
+        personalInfoData.setAdUnit("oldAdUnit");
+
+        subject.getServerOverrideListener().onRequestSuccess("newAdUnit");
+
+        assertThat(personalInfoData.getAdUnitId()).isEqualTo("oldAdUnit");
+    }
+
+    @Test
     public void attemptStateTransition_withSameConsentStatus_shouldDoNothing() {
         subject.attemptStateTransition(ConsentStatus.UNKNOWN, "no reason");
 
@@ -696,6 +769,7 @@ public class PersonalInfoManagerTest {
         subject.attemptStateTransition(ConsentStatus.EXPLICIT_YES, "no reason");
         verifyZeroInteractions(mockConsentStatusChangeListener);
         assertThat(personalInfoData.getConsentedPrivacyPolicyVersion()).isEqualTo("1");
+        assertThat(personalInfoData.getLastChangedMs()).isEqualTo("old_time");
     }
 
     @Test
@@ -715,6 +789,7 @@ public class PersonalInfoManagerTest {
         assertThat(subject.getPersonalInfoConsentStatus()).isEqualTo(ConsentStatus.EXPLICIT_YES);
         verify(mockConsentStatusChangeListener).onConsentStateChange(ConsentStatus.UNKNOWN,
                 ConsentStatus.EXPLICIT_YES, true);
+        assertThat(personalInfoData.getLastChangedMs()).isNotEqualTo("old_time");
     }
 
     @Test
@@ -736,6 +811,7 @@ public class PersonalInfoManagerTest {
         verify(mockConsentStatusChangeListener).onConsentStateChange(
                 ConsentStatus.POTENTIAL_WHITELIST,
                 ConsentStatus.EXPLICIT_YES, true);
+        assertThat(personalInfoData.getLastChangedMs()).isNotEqualTo("old_time");
     }
 
     @Test
@@ -757,6 +833,7 @@ public class PersonalInfoManagerTest {
         assertThat(subject.getPersonalInfoConsentStatus()).isEqualTo(ConsentStatus.DNT);
         verify(mockConsentStatusChangeListener).onConsentStateChange(ConsentStatus.EXPLICIT_YES,
                 ConsentStatus.DNT, false);
+        assertThat(personalInfoData.getLastChangedMs()).isNotEqualTo("old_time");
     }
 
     @Test
@@ -777,6 +854,7 @@ public class PersonalInfoManagerTest {
         assertThat(subject.getPersonalInfoConsentStatus()).isEqualTo(ConsentStatus.DNT);
         verify(mockConsentStatusChangeListener).onConsentStateChange(ConsentStatus.EXPLICIT_YES,
                 ConsentStatus.DNT, false);
+        assertThat(personalInfoData.getLastChangedMs()).isNotEqualTo("old_time");
     }
 
     @Test
@@ -798,6 +876,7 @@ public class PersonalInfoManagerTest {
         assertThat(subject.getPersonalInfoConsentStatus()).isEqualTo(ConsentStatus.EXPLICIT_NO);
         verify(mockConsentStatusChangeListener).onConsentStateChange(ConsentStatus.EXPLICIT_YES,
                 ConsentStatus.EXPLICIT_NO, false);
+        assertThat(personalInfoData.getLastChangedMs()).isNotEqualTo("old_time");
     }
 
     @Test
@@ -818,5 +897,6 @@ public class PersonalInfoManagerTest {
                 ConsentStatus.POTENTIAL_WHITELIST);
         verify(mockConsentStatusChangeListener).onConsentStateChange(ConsentStatus.UNKNOWN,
                 ConsentStatus.POTENTIAL_WHITELIST, false);
+        assertThat(personalInfoData.getLastChangedMs()).isNotEqualTo("old_time");
     }
 }

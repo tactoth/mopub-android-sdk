@@ -8,9 +8,7 @@ Sign up for an account at [http://app.mopub.com/](http://app.mopub.com/).
 
 You can find integration documentation on our [wiki](https://github.com/mopub/mopub-android-sdk/wiki/Getting-Started) and additional help documentation on our [developer help site](http://dev.twitter.com/mopub).
 
-To file an issue with our team visit the [MoPub Forum](https://twittercommunity.com/c/fabric/mopub) or email [support@mopub.com](mailto:support@mopub.com).
-
-**Please Note: We no longer accept GitHub Issues.**
+To file an issue with our team visit the [MoPub Forum](https://twittercommunity.com/c/advertiser-api/mopub) or email [support@mopub.com](mailto:support@mopub.com).
 
 ## New Pull Requests?
 
@@ -39,7 +37,7 @@ The MoPub SDK is available via:
     }
 
     dependencies {
-        implementation('com.mopub:mopub-sdk:5.3.0@aar') {
+        implementation('com.mopub:mopub-sdk:5.10.0@aar') {
             transitive = true
         }
     }
@@ -61,27 +59,27 @@ The MoPub SDK is available via:
         // ... other project dependencies
 
         // For banners
-        implementation('com.mopub:mopub-sdk-banner:5.3.0@aar') {
+        implementation('com.mopub:mopub-sdk-banner:5.10.0@aar') {
             transitive = true
         }
         
         // For interstitials
-        implementation('com.mopub:mopub-sdk-interstitial:5.3.0@aar') {
+        implementation('com.mopub:mopub-sdk-interstitial:5.10.0@aar') {
             transitive = true
         }
 
         // For rewarded videos. This will automatically also include interstitials
-        implementation('com.mopub:mopub-sdk-rewardedvideo:5.3.0@aar') {
+        implementation('com.mopub:mopub-sdk-rewardedvideo:5.10.0@aar') {
             transitive = true
         }
 
         // For native static (images).
-        implementation('com.mopub:mopub-sdk-native-static:5.3.0@aar') {
+        implementation('com.mopub:mopub-sdk-native-static:5.10.0@aar') {
             transitive = true
         }
 
         // For native video. This will automatically also include native static
-        implementation('com.mopub:mopub-sdk-native-video:5.3.0@aar') {
+        implementation('com.mopub:mopub-sdk-native-video:5.10.0@aar') {
             transitive = true
         }
     }
@@ -91,7 +89,7 @@ The MoPub SDK is available via:
 
 2. **Zipped Source**
 
-    The MoPub SDK is also distributed as zipped source code that you can include in your application.  MoPub provides two prepackaged archives of source code:
+    The MoPub SDK is also distributed as zipped source code that you can include in your application:
 
     **[MoPub Android SDK.zip](http://bit.ly/YUdWhH)**  
     _Includes everything you need to serve MoPub ads.  No third party ad networks are included._
@@ -109,28 +107,32 @@ The MoPub SDK is available via:
 ## New in this Version
 Please view the [changelog](https://github.com/mopub/mopub-android-sdk/blob/master/CHANGELOG.md) for a complete list of additions, fixes, and enhancements in the latest release.
 
-- This release includes the foundation work for SDK to receive optimized responses for multiple placements from the waterfall. This effort will reduce the number of server roundtrips and minimize the ad response latency.
-- Upgraded ExoPlayer dependency to 2.8.2.
-- Upgraded recommended Google Play Services dependency to 15.0.1.
-- Upgraded target sdk version to 27 and support libraries to 27.1.1.
-- Upgraded Gradle dependency to 4.4.
-- Upgraded Android Plugin dependency to 3.1.3.
-- Upgraded test dependencies Powermock to 1.6.6 and Robolectric to 3.8.
+- **Features**
+    - Activities no longer need to be declared when using maven or `.aar`s.
+    - Upgrade Android Gradle plugin dependency to 3.5.1.
+    - Add the `androidx.appcompat:appcompat` dependency to support default themes in MoPub activities.
+    - Add support for the Verizon native ad renderer.
+    - Sample app now has an example manual native integration.
+
+- **Bug Fixes**
+    - VAST skip trackers are no longer always fired when the video is closed. They only fire if the video is closed when the video still has time remaining.
+    - Adding new ad units to the sample app is now immediate.
 
 ## Requirements
 
 - Android 4.1 (API Version 16) and up (**Updated in 4.12.0**)
-- android-support-v4.jar, r27 (**Updated in 5.3.0**)
-- android-support-annotations.jar, r27 (**Updated in 5.3.0**)
-- android-support-v7-recyclerview.jar, r27 (**Updated in 5.3.0**)
-- MoPub Volley Library (mopub-volley-2.0.0.jar - available on JCenter) (**Updated in 5.0.0**)
-- **Recommended** Google Play Services 15.0.1
+- androidx.legacy:legacy-support-v4:1.0.0 (**Updated in 5.9.0**)
+- androidx.annotation:annotation:1.1.0 (**Updated in 5.9.0**)
+- androidx.appcompat:appcompat:1.1.0 (**Updated in 5.10.0**)
+- androidx.recyclerview:recyclerview:1.0.0 (**Updated in 5.9.0**)
+- MoPub Volley Library (mopub-volley-2.1.0.jar - available on JCenter) (**Updated in 5.6.0**)
+- **Recommended** Google Play Services (com.google.android.gms:play-services-ads-identifier:17.0.0 and com.google.android.gms:play-services-base:17.1.0) (**Updated in 5.10.0**)
 
 ## Upgrading to SDK 5.0
 
 Please see the [Getting Started Guide](https://developers.mopub.com/docs/android/getting-started/) for instructions on upgrading from SDK 4.X to SDK 5.0.
 
-For GDPR-specific upgrading instructions, also see the [GDPR Integration Guide](https://developers.mopub.com/docs/publisher/gdpr).
+For GDPR-specific upgrading instructions, also see the [GDPR Integration Guide](https://developers.mopub.com/docs/publisher/gdpr-guide).
 
 ## <a name="upgradeRepositoryViewability"></a>Upgrading from 4.15.0 and Prior
 In 4.16.0, dependencies were added to viewability libraries provided by AVID and Moat. Apps upgrading from previous versions must add
@@ -144,7 +146,7 @@ Normally, to add the MoPub SDK to your app via JCenter, your `build.gradle` woul
 
 ```	
 dependencies {
-    implementation('com.mopub:mopub-sdk:5.3.0@aar') {
+    implementation('com.mopub:mopub-sdk:5.10.0@aar') {
         transitive = true
     }
 }
@@ -153,7 +155,7 @@ Update to the following to exclude one or both viewability vendors:
 
 ```
 dependencies {
-    implementation('com.mopub:mopub-sdk:5.3.0@aar') {
+    implementation('com.mopub:mopub-sdk:5.10.0@aar') {
         transitive = true
         exclude module: 'libAvid-mopub' // To exclude AVID
         exclude module: 'moat-mobile-app-kit' // To exclude Moat
@@ -168,7 +170,7 @@ mopub.avidEnabled=false
 mopub.moatEnabled=false
 ```
 ##### Disable via API
-If you would like to opt out of viewability measurement but do not want to modify the MoPub SDK, a function is provided for your convenience. At any point, call `MoPub.disableViewability(vendor);`. This method can can be called with any of the enum values available in `ExternalViewabilitySessionManager.ViewabilityVendor`: `AVID` will disable AVID but leave Moat enabled, `MOAT` will disable Moat but leave AVID enabled, and `ALL` will disable all viewability measurement.
+If you would like to opt out of viewability measurement but do not want to modify the MoPub SDK, a function is provided for your convenience. At any point, call `MoPub.disableViewability(vendor);`. This method can be called with any of the enum values available in `ExternalViewabilitySessionManager.ViewabilityVendor`: `AVID` will disable AVID but leave Moat enabled, `MOAT` will disable Moat but leave AVID enabled, and `ALL` will disable all viewability measurement.
 
 ## Working with Android 6.0 Runtime Permissions
 If your app's target SDK is 23 or higher _**and**_ the user's device is running Android 6.0 or higher, you are responsible for supporting [runtime permissions](http://developer.android.com/training/permissions/requesting.html), one of the [changes](http://developer.android.com/about/versions/marshmallow/android-6.0-changes.html) introduced in Android 6.0 (API level 23). In addition to listing any dangerous permissions your app needs in the manifest, your app also has to explicitly request the dangerous permission(s) during runtime by calling method `requestPermissions()` in the [`ActivityCompat`](http://developer.android.com/reference/android/support/v4/app/ActivityCompat.html) class.
@@ -177,7 +179,7 @@ If your app's target SDK is 23 or higher _**and**_ the user's device is running 
 - Dangerous permission [`ACCESS_COARSE_LOCATION`](http://developer.android.com/reference/android/Manifest.permission.html#ACCESS_COARSE_LOCATION) is needed to pass network location data to MoPub.
 - Dangerous permission [`ACCESS_FINE_LOCATION`](http://developer.android.com/reference/android/Manifest.permission.html#ACCESS_FINE_LOCATION) is needed to pass GPS location data to MoPub.
     - Granting `ACCESS_FINE_LOCATION` also allows network location data to be passed to MoPub without the need to also grant `ACCESS_COARSE_LOCATION`.
-- Dangerous permission [`WRITE_EXTERNAL_STORAGE`](http://developer.android.com/reference/android/Manifest.permission.html#WRITE_EXTERNAL_STORAGE) is optional and only required for MRAID 2.0 storePicture ads.
+- _**Note:** SDK Version 5.9.0 removes the requirement for the dangerous permission [`WRITE_EXTERNAL_STORAGE`](http://developer.android.com/reference/android/Manifest.permission.html#WRITE_EXTERNAL_STORAGE)._
 - _**Note:** The user can deny granting any dangerous permissions during runtime, so please make sure your app can handle this properly._
 - _**Note:** The user can revoke any permissions granted previously by going to your app's Settings screen, so please make sure your app can handle this properly._
 
@@ -190,4 +192,4 @@ If your app's target SDK is 23 or higher _**and**_ the user's device is running 
 
 ## License
 
-We have launched a new license as of version 3.2.0. To view the full license, visit [http://www.mopub.com/legal/sdk-license-agreement/](http://www.mopub.com/legal/sdk-license-agreement/).
+To view the full license, visit [http://www.mopub.com/legal/sdk-license-agreement/](http://www.mopub.com/legal/sdk-license-agreement/).

@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.mraid;
 
 import android.Manifest;
@@ -7,9 +11,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
 import android.os.Environment;
 import android.provider.CalendarContract;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.util.Pair;
 import android.view.View;
 import android.view.WindowManager;
@@ -19,7 +24,7 @@ import com.mopub.common.test.support.SdkTestRunner;
 import com.mopub.common.util.ResponseHeader;
 import com.mopub.common.util.test.support.ShadowAsyncTasks;
 import com.mopub.common.util.test.support.ShadowMoPubHttpUrlConnection;
-import com.mopub.mobileads.BuildConfig;
+import com.mopub.common.util.test.support.TestDrawables;
 import com.mopub.mobileads.test.support.FileUtils;
 import com.mopub.mraid.MraidNativeCommandHandler.DownloadImageAsyncTask;
 import com.mopub.mraid.MraidNativeCommandHandler.DownloadImageAsyncTask.DownloadImageAsyncTaskListener;
@@ -44,6 +49,7 @@ import org.robolectric.shadows.ShadowEnvironment;
 import org.robolectric.shadows.ShadowLog;
 import org.robolectric.shadows.ShadowToast;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,10 +72,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(SdkTestRunner.class)
-@Config(constants = BuildConfig.class, shadows = {ShadowAsyncTasks.class, ShadowMoPubHttpUrlConnection.class})
+@Config(shadows = {ShadowAsyncTasks.class, ShadowMoPubHttpUrlConnection.class})
 public class MraidNativeCommandHandlerTest {
     private static final String IMAGE_URI_VALUE = "file://tmp/expectedFile.jpg";
     private static final String REMOTE_IMAGE_URL = "https://www.mopub.com/expectedFile.jpg";
+    private static final String FILE_PATH = "/tmp/expectedFile.jpg";
     private static final int TIME_TO_PAUSE_FOR_NETWORK = 300;
     private static final String FAKE_IMAGE_DATA = "imageFileData";
     //XXX: Robolectric or JUNIT doesn't support the correct suffix ZZZZZ in the parse pattern, so replacing xx:xx with xxxx for time.
@@ -90,561 +97,22 @@ public class MraidNativeCommandHandlerTest {
         subject = new MraidNativeCommandHandler();
         context = Robolectric.buildActivity(Activity.class).create().get();
 
-        FileUtils.copyFile("etc/expectedFile.jpg", "/tmp/expectedFile.jpg");
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        TestDrawables.EXPECTED_FILE.getBitmap().compress(Bitmap.CompressFormat.JPEG, 100, baos);
+        FileUtils.writeBytesToFile(baos.toByteArray(), FILE_PATH);
+
         expectedFile = new File(Environment.getExternalStorageDirectory(), "Pictures" + separator + "expectedFile.jpg");
         pictureDirectory = new File(Environment.getExternalStorageDirectory(), "Pictures");
         fileWithoutExtension = new File(pictureDirectory, "file");
 
         // Mount external storage and grant necessary permissions
         ShadowEnvironment.setExternalStorageState(MEDIA_MOUNTED);
-        ShadowApplication.getInstance().grantPermissions(Manifest.permission.WRITE_EXTERNAL_STORAGE);
     }
 
     @After
     public void tearDown() {
         ShadowToast.reset();
-    }
-
-    @Test
-    public void showUserDownloadImageAlert_withActivityContext_shouldDisplayAlertDialog() throws Exception {
-        subject.storePicture(context, IMAGE_URI_VALUE, mockMraidCommandFailureListener);
-
-        AlertDialog alertDialog = ShadowAlertDialog.getLatestAlertDialog();
-        ShadowAlertDialog shadowAlertDialog = Shadows.shadowOf(alertDialog);
-
-        assertThat(alertDialog.isShowing());
-
-        assertThat(shadowAlertDialog.getTitle()).isEqualTo("Save Image");
-        assertThat(shadowAlertDialog.getMessage()).isEqualTo("Download image to Picture gallery?");
-        assertThat(shadowAlertDialog.isCancelable()).isTrue();
-
-        assertThat(alertDialog.getButton(BUTTON_POSITIVE).hasOnClickListeners());
-        assertThat(alertDialog.getButton(BUTTON_NEGATIVE)).isNotNull();
-    }
-
-    @Test
-    public void showUserDownloadImageAlert_withAppContext_shouldToastAndStartDownloadImageAsyncTask() throws Exception {
-        assertThat(ShadowToast.shownToastCount()).isEqualTo(0);
-
-        subject.storePicture(context.getApplicationContext(), IMAGE_URI_VALUE, mockMraidCommandFailureListener);
-
-        assertThat(ShadowToast.shownToastCount()).isEqualTo(1);
-        assertThat(ShadowToast.getTextOfLatestToast()).isEqualTo("Downloading image to Picture gallery...");
-
-        assertThat(ShadowAsyncTasks.wasCalled()).isTrue();
-        assertThat(ShadowAsyncTasks.getLatestAsyncTask()).isInstanceOf(DownloadImageAsyncTask.class);
-        final List<?> latestParams = ShadowAsyncTasks.getLatestParams();
-        assertThat(latestParams).hasSize(1);
-        assertThat(latestParams.get(0)).isEqualTo(IMAGE_URI_VALUE);
-    }
-
-    @Test(expected = MraidCommandException.class)
-    public void showUserDownloadImageAlert_whenStorePictureNotSupported_shouldThrowMraidCommandException() throws Exception {
-        ShadowApplication.getInstance().denyPermissions(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-
-        subject.storePicture(context, IMAGE_URI_VALUE, mockMraidCommandFailureListener);
-    }
-
-    @Test
-    public void showUserDownloadImageAlert_whenOkayClicked_shouldStartDownloadImageAsyncTask() throws Exception {
-        subject.storePicture(context, IMAGE_URI_VALUE, mockMraidCommandFailureListener);
-
-        ShadowAlertDialog.getLatestAlertDialog().getButton(BUTTON_POSITIVE).performClick();
-
-        assertThat(ShadowAsyncTasks.wasCalled()).isTrue();
-        assertThat(ShadowAsyncTasks.getLatestAsyncTask()).isInstanceOf(DownloadImageAsyncTask.class);
-        final List<?> latestParams = ShadowAsyncTasks.getLatestParams();
-        assertThat(latestParams).hasSize(1);
-        assertThat(latestParams.get(0)).isEqualTo(IMAGE_URI_VALUE);
-    }
-
-    @Test
-    public void showUserDownloadImageAlert_whenCancelClicked_shouldDismissDialog_shouldNotStartDownloadImageAsyncTask() throws Exception {
-        subject.storePicture(context, IMAGE_URI_VALUE, mockMraidCommandFailureListener);
-
-        AlertDialog alertDialog = ShadowAlertDialog.getLatestAlertDialog();
-        ShadowAlertDialog shadowAlertDialog = Shadows.shadowOf(alertDialog);
-
-        alertDialog.getButton(BUTTON_NEGATIVE).performClick();
-        assertThat(shadowAlertDialog.hasBeenDismissed()).isTrue();
-        assertThat(ShadowAsyncTasks.wasCalled()).isFalse();
-    }
-
-    @Test
-    public void downloadImageAsyncTask_doInBackground_shouldReturnTrueAndCreateFile() throws Exception {
-        ShadowMoPubHttpUrlConnection.addPendingResponse(200, FAKE_IMAGE_DATA,
-                createHeaders(new Pair<String, String>("content-type", "image/jpg")));
-
-        final DownloadImageAsyncTask downloadImageAsyncTask =
-                new DownloadImageAsyncTask(context, mockDownloadImageAsyncTaskListener);
-
-        final Boolean result =
-                downloadImageAsyncTask.doInBackground(new String[]{REMOTE_IMAGE_URL});
-
-        assertThat(result).isTrue();
-        assertThat(expectedFile.exists()).isTrue();
-        assertThat(expectedFile.length()).isEqualTo(FAKE_IMAGE_DATA.length());
-    }
-
-    @Test
-    public void downloadImageAsyncTask_doInBackground_withLocationHeaderSet_shouldUseLocationHeaderAsFilename() throws Exception {
-        ShadowMoPubHttpUrlConnection.addPendingResponse(200, FAKE_IMAGE_DATA,
-                createHeaders(
-                        new Pair<>("content-type", "image/jpg"),
-                        new Pair<>("location", "https://www.newhost.com/images/blah/file.wow")
-                )
-        );
-
-        final DownloadImageAsyncTask downloadImageAsyncTask =
-                new DownloadImageAsyncTask(context, mockDownloadImageAsyncTaskListener);
-        final Boolean result =
-                downloadImageAsyncTask.doInBackground(new String[]{REMOTE_IMAGE_URL});
-
-        expectedFile = new File(Environment.getExternalStorageDirectory(), "Pictures" + separator + "file.wow.jpg");
-
-        assertThat(result).isTrue();
-        assertThat(expectedFile.exists()).isTrue();
-        assertThat(expectedFile.length()).isEqualTo(FAKE_IMAGE_DATA.length());
-    }
-
-    @Test
-    public void downloadImageAsyncTask_doInBackground_withMissingMimeTypeHeaders_shouldUseDefaultFilename() throws Exception {
-        ShadowMoPubHttpUrlConnection.addPendingResponse(200, FAKE_IMAGE_DATA);
-
-        final DownloadImageAsyncTask downloadImageAsyncTask =
-                new DownloadImageAsyncTask(context, mockDownloadImageAsyncTaskListener);
-        final Boolean result =
-                downloadImageAsyncTask.doInBackground(new String[]{REMOTE_IMAGE_URL});
-
-        assertThat(result).isTrue();
-        assertThat(expectedFile.exists()).isTrue();
-        assertThat(expectedFile.length()).isEqualTo(FAKE_IMAGE_DATA.length());
-    }
-
-    @Test
-    public void downloadImageAsyncTask_doInBackground_withNullArray_shouldReturnFalseAndNotCreateFile() throws Exception {
-        ShadowMoPubHttpUrlConnection.addPendingResponse(200, FAKE_IMAGE_DATA,
-                createHeaders(new Pair<String, String>("content-type", "image/jpg")));
-
-        final DownloadImageAsyncTask downloadImageAsyncTask =
-                new DownloadImageAsyncTask(context, mockDownloadImageAsyncTaskListener);
-
-        final Boolean result =
-                downloadImageAsyncTask.doInBackground(null);
-
-        assertThat(result).isFalse();
-        assertThat(expectedFile.exists()).isFalse();
-    }
-
-    @Test
-    public void downloadImageAsyncTask_doInBackground_withEmptyArray_shouldReturnFalseAndNotCreateFile() throws Exception {
-        ShadowMoPubHttpUrlConnection.addPendingResponse(200, FAKE_IMAGE_DATA,
-                createHeaders(new Pair<String, String>("content-type", "image/jpg")));
-
-        final DownloadImageAsyncTask downloadImageAsyncTask =
-                new DownloadImageAsyncTask(context, mockDownloadImageAsyncTaskListener);
-
-        final Boolean result =
-                downloadImageAsyncTask.doInBackground(new String[]{});
-
-        assertThat(result).isFalse();
-        assertThat(expectedFile.exists()).isFalse();
-    }
-
-    @Test
-    public void downloadImageAsyncTask_doInBackground_withArrayContainingNull_shouldReturnFalseAndNotCreateFile() throws Exception {
-        ShadowMoPubHttpUrlConnection.addPendingResponse(200, FAKE_IMAGE_DATA,
-                createHeaders(new Pair<String, String>("content-type", "image/jpg")));
-
-        final DownloadImageAsyncTask downloadImageAsyncTask =
-                new DownloadImageAsyncTask(context, mockDownloadImageAsyncTaskListener);
-
-        final Boolean result =
-                downloadImageAsyncTask.doInBackground(new String[]{null});
-
-        assertThat(result).isFalse();
-        assertThat(expectedFile.exists()).isFalse();
-    }
-
-    @Test
-    public void downloadImage_withFailedImageDownload_shouldToastErrorMessageAndNotifyOnFailure() {
-        assertThat(ShadowToast.shownToastCount()).isEqualTo(0);
-        subject.downloadImage(context.getApplicationContext(), IMAGE_URI_VALUE, mockMraidCommandFailureListener);
-
-        DownloadImageAsyncTask latestAsyncTask = (DownloadImageAsyncTask) ShadowAsyncTasks.getLatestAsyncTask();
-        latestAsyncTask.getListener().onFailure();
-
-        assertThat(ShadowToast.shownToastCount()).isEqualTo(1);
-        assertThat(ShadowToast.getTextOfLatestToast()).isEqualTo("Image failed to download.");
-        verify(mockMraidCommandFailureListener).onFailure(any(MraidCommandException.class));
-    }
-
-    @Test
-    public void downloadImage_withMimeTypeAndNoFileExtension_shouldSavePictureWithMimeType() throws Exception {
-        String fileNameWithNoExtension = "https://www.somewhere.com/images/blah/file";
-
-        assertThatMimeTypeWasAddedCorrectly(
-                fileNameWithNoExtension,
-                "image/jpg",
-                "file.jpg",
-                ".jpg");
-    }
-
-    @Test
-    public void downloadImage_withMultipleContentTypesAndNoFileExtension_shouldSavePictureWithMimeType() throws Exception {
-        String fileNameWithNoExtension = "https://www.somewhere.com/images/blah/file";
-
-        assertThatMimeTypeWasAddedCorrectly(
-                fileNameWithNoExtension,
-                "text/html; image/png",
-                "file.png",
-                ".png");
-    }
-
-    @Test
-    public void downloadImage_withMimeTypeAndFileExtension_shouldSavePictureWithFileExtension() throws Exception {
-        String fileNameWithExtension = "https://www.somewhere.com/images/blah/file.extension";
-
-        assertThatMimeTypeWasAddedCorrectly(
-                fileNameWithExtension,
-                "image/extension",
-                "file.extension",
-                ".extension");
-
-        assertThat((expectedFile.getName()).endsWith(".extension.extension")).isFalse();
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withMinimumValidParams_shouldCreateEventIntent() throws Exception {
-        setupCalendarParams();
-
-        subject.createCalendarEvent(context, params);
-
-        verify(mockMraidCommandFailureListener, never()).onFailure(any(MraidCommandException.class));
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-
-        assertThat(intent.getType()).isEqualTo(ANDROID_CALENDAR_CONTENT_TYPE);
-        assertThat(intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0);
-        assertThat(intent.getStringExtra(CalendarContract.Events.TITLE)).isNotNull();
-        assertThat(intent.getLongExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, -1)).isNotEqualTo(-1);
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withoutSecondsOnStartDate_shouldCreateEventIntent() throws Exception {
-        setupCalendarParams();
-        params.put("start", "2012-12-21T00:00-0500");
-
-        subject.createCalendarEvent(context, params);
-
-        verify(mockMraidCommandFailureListener, never()).onFailure(any(MraidCommandException.class));
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-
-        assertThat(intent.getType()).isEqualTo(ANDROID_CALENDAR_CONTENT_TYPE);
-        assertThat(intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0);
-        assertThat(intent.getStringExtra(CalendarContract.Events.TITLE)).isNotNull();
-        assertThat(intent.getLongExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, -1)).isNotEqualTo(-1);
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withDailyRecurrence_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "daily");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getType()).isEqualTo(ANDROID_CALENDAR_CONTENT_TYPE);
-        assertThat(intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0);
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=DAILY;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withDailyRecurrence_withInterval_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "daily");
-        params.put("interval", "2");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=DAILY;INTERVAL=2;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withWeeklyRecurrence_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "weekly");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=WEEKLY;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withWeeklyRecurrence_withInterval_withOutWeekday_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "weekly");
-        params.put("interval", "7");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=WEEKLY;INTERVAL=7;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withWeeklyRecurrence_onAllWeekDays_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "weekly");
-        params.put("daysInWeek", "0,1,2,3,4,5,6");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=WEEKLY;BYDAY=SU,MO,TU,WE,TH,FR,SA;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withWeeklyRecurrence_onDuplicateWeekDays_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "weekly");
-        params.put("daysInWeek", "3,2,3,3,7,0");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=WEEKLY;BYDAY=WE,TU,SU;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withWeeklyRecurrence_withInterval_withWeekDay_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "weekly");
-        params.put("interval", "1");
-        params.put("daysInWeek", "1");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=WEEKLY;INTERVAL=1;BYDAY=MO;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withDailyRecurrence_withWeeklyRecurrence_withMonthlyOccurence_shouldCreateDailyCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "daily");
-        params.put("frequency", "daily");
-        params.put("frequency", "daily");
-        params.put("interval", "2");
-        params.put("daysInWeek", "1");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=DAILY;INTERVAL=2;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withMonthlyRecurrence_withOutInterval_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "monthly");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=MONTHLY;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withMonthlyRecurrence_withInterval_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "monthly");
-        params.put("interval", "2");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=MONTHLY;INTERVAL=2;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withMonthlyRecurrence_withOutInterval_withDaysOfMonth_shouldCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "monthly");
-        params.put("daysInMonth", "2,-15");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-        assertThat(intent.getStringExtra(CalendarContract.Events.RRULE)).isEqualTo("FREQ=MONTHLY;BYMONTHDAY=2,-15;");
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withMonthlyRecurrence_withInvalidDaysOfMonth_shouldNotCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "monthly");
-        params.put("daysInMonth", "55");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-
-        assertThat(intent).isNull();
-        assertThat(ShadowLog.getLogs().size()).isEqualTo(1);
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withWeeklyRecurrence_withInvalidDaysOfWeek_shouldNotCreateCalendarIntent() throws Exception {
-        setupCalendarParams();
-        params.put("frequency", "weekly");
-        params.put("daysInWeek", "-1,20");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-
-        assertThat(intent).isNull();
-        assertThat(ShadowLog.getLogs().size()).isEqualTo(1);
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withInvalidDate_shouldFireErrorEvent() throws Exception {
-        params.put("start", "2013-08-14T09:00.-08:00");
-        params.put("description", "Some Event");
-
-        subject.createCalendarEvent(context, params);
-
-        verify(mockMraidCommandFailureListener).onFailure(any(MraidCommandException.class));
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withMissingParameters_shouldFireErrorEvent() throws Exception {
-        //it needs a start time
-        params.put("description", "Some Event");
-
-        subject.createCalendarEvent(context, params);
-
-        verify(mockMraidCommandFailureListener).onFailure(any(MraidCommandException.class));
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void createCalendarEvent_withNullDate_shouldFireErrorEvent() throws Exception {
-        params.put("start", null);
-        params.put("description", "Some Event");
-
-        subject.createCalendarEvent(context, params);
-
-        verify(mockMraidCommandFailureListener).onFailure(any(MraidCommandException.class));
-    }
-
-    @Ignore("Mraid 2.0")
-    @Test
-    public void
-    createCalendarEvent_withValidParamsAllExceptRecurrence_shouldCreateEventIntent() throws Exception {
-        setupCalendarParams();
-        params.put("location", "my house");
-        params.put("end", "2013-08-14T22:01:01-0000");
-        params.put("summary", "some description actually");
-        params.put("transparency", "transparent");
-
-        subject.createCalendarEvent(context, params);
-
-        Intent intent = ShadowApplication.getInstance().getNextStartedActivity();
-
-        assertThat(intent.getType()).isEqualTo(ANDROID_CALENDAR_CONTENT_TYPE);
-        assertThat(intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0);
-        assertThat(intent.getStringExtra(CalendarContract.Events.TITLE)).isNotNull();
-        assertThat(intent.getStringExtra(CalendarContract.Events.DESCRIPTION)).isNotNull();
-        assertThat(intent.getStringExtra(CalendarContract.Events.EVENT_LOCATION)).isNotNull();
-        assertThat(intent.getLongExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, -1)).isNotEqualTo(-1);
-        assertThat(intent.getLongExtra(CalendarContract.EXTRA_EVENT_END_TIME, -1)).isNotEqualTo(-1);
-        assertThat(intent.getIntExtra(CalendarContract.Events.AVAILABILITY, -1)).isEqualTo(CalendarContract.Events.AVAILABILITY_FREE);
-    }
-
-    @Test
-    public void isTelAvailable_whenCanAcceptIntent_shouldReturnTrue() throws Exception {
-        context = createMockContextWithSpecificIntentData("tel", null, null, "android.intent.action.DIAL");
-
-        assertThat(subject.isTelAvailable(context)).isTrue();
-    }
-
-    @Test
-    public void isTelAvailable_whenCanNotAcceptIntent_shouldReturnFalse() throws Exception {
-        context = createMockContextWithSpecificIntentData("", null, null, "android.intent.action.DIAL");
-
-        assertThat(subject.isTelAvailable(context)).isFalse();
-    }
-
-    @Test
-    public void isSmsAvailable_whenCanAcceptIntent_shouldReturnTrue() throws Exception {
-        context = createMockContextWithSpecificIntentData("sms", null, null, "android.intent.action.VIEW");
-
-        assertThat(subject.isSmsAvailable(context)).isTrue();
-    }
-
-    @Test
-    public void isSmsAvailable_whenCanNotAcceptIntent_shouldReturnFalse() throws Exception {
-        context = createMockContextWithSpecificIntentData("", null, null, "android.intent.action.VIEW");
-
-        assertThat(subject.isSmsAvailable(context)).isFalse();
-    }
-
-    @Test
-    public void isStorePictureAvailable_whenPermissionDeclaredAndMediaMounted_shouldReturnTrue() throws Exception {
-        ShadowApplication.getInstance().grantPermissions(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        ShadowEnvironment.setExternalStorageState(Environment.MEDIA_MOUNTED);
-
-        assertThat(subject.isStorePictureSupported(context)).isTrue();
-    }
-
-    @Test
-    public void isStorePictureAvailable_whenPermissionDenied_shouldReturnFalse() throws Exception {
-        ShadowApplication.getInstance().denyPermissions(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        ShadowEnvironment.setExternalStorageState(Environment.MEDIA_MOUNTED);
-
-        assertThat(subject.isStorePictureSupported(context)).isFalse();
-    }
-
-    @Test
-    public void isStorePictureAvailable_whenMediaUnmounted_shouldReturnFalse() throws Exception {
-        ShadowApplication.getInstance().grantPermissions(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        ShadowEnvironment.setExternalStorageState(Environment.MEDIA_UNMOUNTED);
-
-        assertThat(subject.isStorePictureSupported(context)).isFalse();
-    }
-
-    @Test
-    public void isCalendarAvailable_shouldReturnTrue() throws Exception {
-        context = createMockContextWithSpecificIntentData(null, null, ANDROID_CALENDAR_CONTENT_TYPE, "android.intent.action.INSERT");
-        assertThat(subject.isCalendarAvailable(context)).isTrue();
-    }
-
-    @Test
-    public void isCalendarAvailable_butCanNotAcceptIntent_shouldReturnFalse() throws
-            Exception {
-        context = createMockContextWithSpecificIntentData(null, null, "vnd.android.cursor.item/NOPE", "android.intent.action.INSERT");
-        assertThat(subject.isCalendarAvailable(context)).isFalse();
+        assertThat(new File(FILE_PATH).delete()).isTrue();
     }
 
     @Test
@@ -671,7 +139,7 @@ public class MraidNativeCommandHandlerTest {
     }
 
     @Test
-    public void isInlineVideoAvailable_whenViewsAreNotHardwareAccelerated_whenWindowIsHardwareAccelerated_shouldReturnFalse() throws Exception {
+    public void isInlineVideoAvailable_whenViewsAreNotHardwareAccelerated_whenWindowIsHardwareAccelerated_shouldReturnTrue() throws Exception {
         Activity activity = Robolectric.buildActivity(Activity.class).create().get();
         activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
 
@@ -679,11 +147,11 @@ public class MraidNativeCommandHandlerTest {
         when(mockView.isHardwareAccelerated()).thenReturn(false);
         when(mockView.getLayerType()).thenReturn(View.LAYER_TYPE_HARDWARE);
 
-        assertThat(subject.isInlineVideoAvailable(activity, mockView)).isFalse();
+        assertThat(subject.isInlineVideoAvailable(activity, mockView)).isTrue();
     }
 
     @Test
-    public void isInlineVideoAvailable_whenViewParentIsNotHardwareAccelerated_whenWindowIsHardwareAccelerated_shouldReturnFalse() throws Exception {
+    public void isInlineVideoAvailable_whenViewParentIsNotHardwareAccelerated_whenWindowIsHardwareAccelerated_shouldReturnTrue() throws Exception {
         Activity activity = Robolectric.buildActivity(Activity.class).create().get();
         activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
 
@@ -698,7 +166,7 @@ public class MraidNativeCommandHandlerTest {
         when(mockView.getLayerType()).thenReturn(View.LAYER_TYPE_HARDWARE);
         when(mockView.getParent()).thenReturn(mockLinearLayout);
 
-        assertThat(subject.isInlineVideoAvailable(activity, mockView)).isFalse();
+        assertThat(subject.isInlineVideoAvailable(activity, mockView)).isTrue();
     }
 
     private static Context createMockContextWithSpecificIntentData(final String scheme, final String componentName, final String type, final String action) {
@@ -800,7 +268,7 @@ public class MraidNativeCommandHandlerTest {
                 if (!(invocation.getArguments()[0] instanceof Intent)) {
                     throw new ClassCastException("For some reason you are not passing the calendar intent properly");
                 }
-                Context shadowContext = ShadowApplication.getInstance().getApplicationContext();
+                Context shadowContext = context;
                 shadowContext.startActivity((Intent) invocation.getArguments()[0]);
                 return null;
             }

@@ -1,3 +1,7 @@
+// Copyright 2018-2019 Twitter, Inc.
+// Licensed under the MoPub SDK License Agreement
+// http://www.mopub.com/legal/sdk-license-agreement/
+
 package com.mopub.common.privacy;
 
 
@@ -5,12 +9,13 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.mopub.common.ClientMetadata;
 import com.mopub.common.Constants;
+import com.mopub.common.MoPub;
 import com.mopub.common.Preconditions;
 import com.mopub.common.SdkInitializationListener;
 import com.mopub.common.VisibleForTesting;
@@ -27,6 +32,14 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+
+import static com.mopub.common.logging.MoPubLog.ConsentLogEvent.LOAD_ATTEMPTED;
+import static com.mopub.common.logging.MoPubLog.ConsentLogEvent.LOAD_FAILED;
+import static com.mopub.common.logging.MoPubLog.ConsentLogEvent.SYNC_ATTEMPTED;
+import static com.mopub.common.logging.MoPubLog.ConsentLogEvent.SYNC_COMPLETED;
+import static com.mopub.common.logging.MoPubLog.ConsentLogEvent.SYNC_FAILED;
+import static com.mopub.common.logging.MoPubLog.ConsentLogEvent.CUSTOM;
+import static com.mopub.common.logging.MoPubLog.ConsentLogEvent.UPDATED;
 
 /**
  * The manager handling personal information. If the user is in a GDPR region, MoPub must get
@@ -51,10 +64,10 @@ public class PersonalInfoManager {
     private long mSyncDelayMs = MINIMUM_SYNC_DELAY;
     @Nullable private Long mLastSyncRequestTimeUptimeMs;
     @Nullable private ConsentStatus mSyncRequestConsentStatus;
-    private long mSyncRequestEpochTime;
     private boolean mSyncRequestInFlight;
     private boolean mForceGdprAppliesChanged;
     private boolean mForceGdprAppliesChangedSending;
+    private boolean mLegitimateInterestAllowed;
 
     public PersonalInfoManager(@NonNull final Context context, @NonNull final String adUnitId,
             @Nullable SdkInitializationListener sdkInitializationListener) {
@@ -70,7 +83,13 @@ public class PersonalInfoManager {
 
         mConsentDialogController = new ConsentDialogController(mAppContext);
 
-        mPersonalInfoData = new PersonalInfoData(context, adUnitId);
+        mPersonalInfoData = new PersonalInfoData(mAppContext);
+        if (!TextUtils.isEmpty(adUnitId) &&
+                !adUnitId.equals(mPersonalInfoData.getCachedLastAdUnitIdUsedForInit())) {
+            mPersonalInfoData.setAdUnit("");
+            mPersonalInfoData.setCachedLastAdUnitIdUsedForInit(adUnitId);
+            mPersonalInfoData.writeToDisk();
+        }
 
         mConversionTracker = new MoPubConversionTracker(mAppContext);
 
@@ -127,7 +146,8 @@ public class PersonalInfoManager {
      * @return True for yes, false for no.
      */
     public boolean shouldShowConsentDialog() {
-        if (gdprApplies() == null || !gdprApplies()) {
+        final Boolean gdprApplies = gdprApplies();
+        if (gdprApplies == null || !gdprApplies) {
             return false;
         }
 
@@ -161,6 +181,7 @@ public class PersonalInfoManager {
      */
     public void loadConsentDialog(
             @Nullable final ConsentDialogListener consentDialogListener) {
+        MoPubLog.log(LOAD_ATTEMPTED);
         ManifestUtils.checkGdprActivitiesDeclared(mAppContext);
 
         if (ClientMetadata.getInstance(
@@ -169,6 +190,8 @@ public class PersonalInfoManager {
                 new Handler().post(new Runnable() {
                     @Override
                     public void run() {
+                        MoPubLog.log(LOAD_FAILED, MoPubErrorCode.DO_NOT_TRACK.getIntCode(),
+                                MoPubErrorCode.DO_NOT_TRACK);
                         consentDialogListener.onConsentDialogLoadFailed(
                                 MoPubErrorCode.DO_NOT_TRACK);
                     }
@@ -182,6 +205,8 @@ public class PersonalInfoManager {
                 new Handler().post(new Runnable() {
                     @Override
                     public void run() {
+                        MoPubLog.log(LOAD_FAILED, MoPubErrorCode.GDPR_DOES_NOT_APPLY.getIntCode(),
+                                MoPubErrorCode.GDPR_DOES_NOT_APPLY);
                         consentDialogListener.onConsentDialogLoadFailed(
                                 MoPubErrorCode.GDPR_DOES_NOT_APPLY);
                     }
@@ -227,12 +252,31 @@ public class PersonalInfoManager {
     }
 
     /**
+     * Set the allowance of legitimate interest.
+     *
+     * @param allowed is true if legitimate interest is allowed. False if it isn't allowed.
+     */
+    public void setAllowLegitimateInterest(boolean allowed) {
+        mLegitimateInterestAllowed = allowed;
+    }
+
+    /**
+     * Check this to see if legitimate interest is allowed.
+     *
+     * @return True if allowed, false otherwise.
+     */
+    public boolean shouldAllowLegitimateInterest() {
+        return mLegitimateInterestAllowed;
+    }
+
+    /**
      * Returns whether or not the SDK thinks the user is in a GDPR region or not. Returns true for
      * in a GDPR region, false for not in a GDPR region, and null for unknown. This value can be
      * overwritten to true by setting forceGdprApplies().
      *
      * @return true for in GDPR region, false for not in GDPR region, null for unknown
      */
+    @Nullable
     public Boolean gdprApplies() {
         if (mPersonalInfoData.isForceGdprApplies()) {
             return true;
@@ -278,7 +322,7 @@ public class PersonalInfoManager {
     public void grantConsent() {
         if (ClientMetadata.getInstance(mAppContext).getMoPubIdentifier().getAdvertisingInfo()
                 .isDoNotTrack()) {
-            MoPubLog.e("Cannot grant consent because Do Not Track is on.");
+            MoPubLog.log(CUSTOM, "Cannot grant consent because Do Not Track is on.");
             return;
         }
 
@@ -286,7 +330,7 @@ public class PersonalInfoManager {
             attemptStateTransition(ConsentStatus.EXPLICIT_YES,
                     ConsentChangeReason.GRANTED_BY_WHITELISTED_PUB);
         } else {
-            MoPubLog.w("You do not have approval to use the grantConsent API. Please reach out " +
+            MoPubLog.log(CUSTOM, "You do not have approval to use the grantConsent API. Please reach out " +
                     "to your account teams or support@mopub.com for more information.");
             attemptStateTransition(ConsentStatus.POTENTIAL_WHITELIST,
                     ConsentChangeReason.GRANTED_BY_NOT_WHITELISTED_PUB);
@@ -300,7 +344,7 @@ public class PersonalInfoManager {
     public void revokeConsent() {
         if (ClientMetadata.getInstance(mAppContext).getMoPubIdentifier().getAdvertisingInfo()
                 .isDoNotTrack()) {
-            MoPubLog.e("Cannot revoke consent because Do Not Track is on.");
+            MoPubLog.log(CUSTOM, "Cannot revoke consent because Do Not Track is on.");
             return;
         }
 
@@ -321,7 +365,7 @@ public class PersonalInfoManager {
                 requestSync(true);
                 break;
             default:
-                MoPubLog.d("Invalid consent status: " + consentStatus + ". This is a bug with " +
+                MoPubLog.log(CUSTOM, "Invalid consent status: " + consentStatus + ". This is a bug with " +
                         "the use of changeConsentStateFromDialog.");
         }
     }
@@ -382,6 +426,10 @@ public class PersonalInfoManager {
      *              a GDPR region or if a request is already in flight.
      */
     public void requestSync(final boolean force) {
+        if (!MoPub.isSdkInitialized()) {
+            return;
+        }
+
         final AdvertisingId advertisingId = ClientMetadata.getInstance(mAppContext)
                 .getMoPubIdentifier().getAdvertisingInfo();
         if (!shouldMakeSyncRequest(mSyncRequestInFlight,
@@ -394,14 +442,20 @@ public class PersonalInfoManager {
             return;
         }
 
+        requestSync();
+    }
+
+    @VisibleForTesting
+    void requestSync() {
+        MoPubLog.log(SYNC_ATTEMPTED);
+
         mSyncRequestConsentStatus = mPersonalInfoData.getConsentStatus();
-        mSyncRequestEpochTime = Calendar.getInstance().getTimeInMillis();
         mSyncRequestInFlight = true;
 
         mLastSyncRequestTimeUptimeMs = SystemClock.uptimeMillis();
         final SyncUrlGenerator syncUrlGenerator = new SyncUrlGenerator(mAppContext,
                 mSyncRequestConsentStatus.getValue());
-        syncUrlGenerator.withAdUnitId(mPersonalInfoData.getAdUnitId())
+        syncUrlGenerator.withAdUnitId(mPersonalInfoData.chooseAdUnit())
                 .withUdid(mPersonalInfoData.getUdid())
                 .withLastChangedMs(mPersonalInfoData.getLastChangedMs())
                 .withLastConsentStatus(mPersonalInfoData.getLastSuccessfullySyncedConsentStatus())
@@ -431,7 +485,7 @@ public class PersonalInfoManager {
      * @return ConsentData which is a snapshot of the underlying data store.
      */
     public ConsentData getConsentData() {
-        return new PersonalInfoData(mAppContext, mPersonalInfoData.getAdUnitId());
+        return new PersonalInfoData(mAppContext);
     }
 
     /**
@@ -460,13 +514,12 @@ public class PersonalInfoManager {
 
         final ConsentStatus oldConsentStatus = mPersonalInfoData.getConsentStatus();
         if (oldConsentStatus.equals(newConsentStatus)) {
-            MoPubLog.d("Consent status is already " + oldConsentStatus +
+            MoPubLog.log(CUSTOM, "Consent status is already " + oldConsentStatus +
                     ". Not doing a state transition.");
             return;
         }
 
-        MoPubLog.d("Changing consent status from " + oldConsentStatus + "to " + newConsentStatus +
-                " because " + consentChangeReason);
+        mPersonalInfoData.setLastChangedMs("" + Calendar.getInstance().getTimeInMillis());
         mPersonalInfoData.setConsentChangeReason(consentChangeReason);
         mPersonalInfoData.setConsentStatus(newConsentStatus);
         if (ConsentStatus.POTENTIAL_WHITELIST.equals(newConsentStatus) ||
@@ -507,6 +560,8 @@ public class PersonalInfoManager {
             }
         }
 
+        MoPubLog.log(UPDATED, oldConsentStatus, newConsentStatus, canCollectPersonalInformation(), consentChangeReason);
+
         fireOnConsentStateChangeListeners(oldConsentStatus, newConsentStatus,
                 canCollectPersonalInformation);
     }
@@ -532,7 +587,7 @@ public class PersonalInfoManager {
 
             @Override
             public void onInitializationFinished() {
-                MoPubLog.d("MoPubIdentifier initialized.");
+                MoPubLog.log(CUSTOM, "MoPubIdentifier initialized.");
                 final AdvertisingId advertisingId = ClientMetadata.getInstance(mAppContext)
                         .getMoPubIdentifier().getAdvertisingInfo();
                 if (!shouldMakeSyncRequest(mSyncRequestInFlight,
@@ -547,7 +602,7 @@ public class PersonalInfoManager {
                         mSdkInitializationListener = null;
                     }
                 } else {
-                    requestSync(false);
+                    requestSync();
                 }
                 new MoPubConversionTracker(mAppContext).reportAppOpen(true);
             }
@@ -558,6 +613,8 @@ public class PersonalInfoManager {
 
         @Override
         public void onSuccess(final SyncResponse response) {
+            MoPubLog.log(SYNC_COMPLETED);
+
             final boolean oldCanCollectPersonalInformation = canCollectPersonalInformation();
             if (mPersonalInfoData.getGdprApplies() == null) {
                 mPersonalInfoData.setGdprApplies(response.isGdprRegion());
@@ -572,7 +629,12 @@ public class PersonalInfoManager {
                 }
             }
 
-            mPersonalInfoData.setLastChangedMs("" + mSyncRequestEpochTime);
+            final String cachedLastAdUnitIdUsedForInit =
+                    mPersonalInfoData.getCachedLastAdUnitIdUsedForInit();
+            if (!TextUtils.isEmpty(cachedLastAdUnitIdUsedForInit) &&
+                    mPersonalInfoData.getAdUnitId().isEmpty()) {
+                mPersonalInfoData.setAdUnit(cachedLastAdUnitIdUsedForInit);
+            }
             mPersonalInfoData.setLastSuccessfullySyncedConsentStatus(mSyncRequestConsentStatus);
             mPersonalInfoData.setWhitelisted(response.isWhitelisted());
             mPersonalInfoData.setCurrentVendorListVersion(response.getCurrentVendorListVersion());
@@ -610,10 +672,10 @@ public class PersonalInfoManager {
                     if (callAgainAfterSecsLong > 0) {
                         mSyncDelayMs = callAgainAfterSecsLong * 1000;
                     } else {
-                        MoPubLog.d("callAgainAfterSecs is not positive: " + callAgainAfterSecs);
+                        MoPubLog.log(CUSTOM, "callAgainAfterSecs is not positive: " + callAgainAfterSecs);
                     }
                 } catch (NumberFormatException e) {
-                    MoPubLog.d("Unable to parse callAgainAfterSecs. Ignoring value");
+                    MoPubLog.log(CUSTOM, "Unable to parse callAgainAfterSecs. Ignoring value");
                 }
             }
 
@@ -647,12 +709,17 @@ public class PersonalInfoManager {
 
         @Override
         public void onErrorResponse(final VolleyError volleyError) {
-            MoPubLog.d("Failed sync request because of " +
-                    ((volleyError instanceof MoPubNetworkError) ?
-                            ((MoPubNetworkError) volleyError).getReason() : volleyError.getMessage()));
+            final int reason = ((volleyError instanceof MoPubNetworkError)
+                    ? ((MoPubNetworkError) volleyError).getReason().ordinal()
+                    : MoPubErrorCode.UNSPECIFIED.getIntCode());
+            final String message = ((volleyError instanceof MoPubNetworkError)
+                    ? volleyError.getMessage()
+                    : MoPubErrorCode.UNSPECIFIED.toString());
+            MoPubLog.log(SYNC_FAILED, reason, message);
+
             mSyncRequestInFlight = false;
             if (mSdkInitializationListener != null) {
-                MoPubLog.d("Personal Info Manager initialization finished but ran into errors.");
+                MoPubLog.log(CUSTOM, "Personal Info Manager initialization finished but ran into errors.");
                 mSdkInitializationListener.onInitializationFinished();
                 mSdkInitializationListener = null;
             }
@@ -692,6 +759,17 @@ public class PersonalInfoManager {
         @Override
         public void onForceGdprApplies() {
             forceGdprApplies();
+        }
+
+        @Override
+        public void onRequestSuccess(@Nullable final String adUnitId) {
+            // Cache the ad unit if the ad request succeeded
+            if (!TextUtils.isEmpty(mPersonalInfoData.getAdUnitId()) ||
+                    TextUtils.isEmpty(adUnitId)) {
+                return;
+            }
+            mPersonalInfoData.setAdUnit(adUnitId);
+            mPersonalInfoData.writeToDisk();
         }
     }
 
