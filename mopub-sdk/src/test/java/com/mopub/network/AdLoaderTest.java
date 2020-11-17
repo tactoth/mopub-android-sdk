@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
@@ -24,7 +24,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
-import org.robolectric.shadows.ShadowLooper;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -37,6 +36,7 @@ import static org.fest.assertions.api.Assertions.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -138,7 +138,8 @@ public class AdLoaderTest {
         Request<?> request = subject.loadNextAd(null);
 
         assertNull(request);
-        verify(mockListener).onErrorResponse(any(VolleyError.class));
+        verify(mockListener).onErrorResponse(
+                eq(new MoPubNetworkError(MoPubNetworkError.Reason.TOO_MANY_REQUESTS)));
         RequestQueue requestQueue = Networking.getRequestQueue();
         verify(requestQueue, never()).add(any(Request.class));
     }
@@ -180,6 +181,16 @@ public class AdLoaderTest {
         subject.loadNextAd(null);
 
         verify(mockListener).onErrorResponse(any(VolleyError.class));
+    }
+
+    @Test
+    public void loadNextAd_withRateLimiting_shouldCallOnErrorResponse_shouldSetFailed() throws NoSuchFieldException, IllegalAccessException {
+        RequestRateTracker.getInstance().registerRateLimit(adUnitId, 1000, "reason");
+        subject.loadNextAd(null);
+
+        verify(mockListener).onErrorResponse(
+                eq(new MoPubNetworkError(MoPubNetworkError.Reason.TOO_MANY_REQUESTS)));
+        assertThat(getPrivateField("mFailed").getBoolean(subject)).isTrue();
     }
 
     @Test

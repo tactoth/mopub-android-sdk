@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
@@ -6,6 +6,7 @@ package com.mopub.mobileads;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+
 import androidx.annotation.NonNull;
 
 import com.mopub.common.Constants;
@@ -76,7 +77,7 @@ public class MoPubConversionTracker {
         }
 
         final ConsentData consentData = infoManager.getConsentData();
-        final String url = new ConversionUrlGenerator(mContext)
+        final String url = new ConversionUrlGenerator(mContext, consentData.chooseAdUnit())
                 .withGdprApplies(infoManager.gdprApplies())
                 .withForceGdprApplies(consentData.isForceGdprApplies())
                 .withCurrentConsentStatus(infoManager.getPersonalInfoConsentStatus().getValue())

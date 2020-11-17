@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
@@ -77,6 +77,12 @@ public interface ConsentData {
      */
     @Nullable
     String getConsentedVendorListIabFormat();
+
+    /**
+     * Returns the most valid ad unit used to initialize MoPub.
+     */
+    @Nullable
+    String chooseAdUnit();
 
     /**
      * Whether GDPR rules have been forced to apply by either the publisher or by MoPub. In

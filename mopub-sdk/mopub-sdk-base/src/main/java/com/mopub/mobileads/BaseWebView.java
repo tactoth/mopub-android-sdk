@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
@@ -10,11 +10,14 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
-import androidx.annotation.NonNull;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.WindowManager;
-import android.webkit.WebSettings;
 import android.webkit.WebView;
+
+import androidx.annotation.NonNull;
 
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.util.Views;
@@ -23,6 +26,8 @@ import com.mopub.mobileads.util.WebViews;
 public class BaseWebView extends WebView {
     private static boolean sDeadlockCleared = false;
     protected boolean mIsDestroyed;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    protected boolean delayDestroy = false;
 
     public BaseWebView(Context context) {
         /*
@@ -32,7 +37,6 @@ public class BaseWebView extends WebView {
          */
         super(context);
 
-        enablePlugins(false);
         restrictDeviceContentAccess();
         WebViews.setDisableJSChromeClient(this);
 
@@ -63,20 +67,16 @@ public class BaseWebView extends WebView {
         // Even after removing from the parent, WebViewClassic can leak because of a static
         // reference from HTML5VideoViewProcessor. Removing children fixes this problem.
         removeAllViews();
-        super.destroy();
+
+        if (delayDestroy) {
+            handler.postDelayed(this::delayedDestroy, 1000);
+        } else {
+            super.destroy();
+        }
     }
 
-    public void enablePlugins(final boolean enabled) {
-        // Android 4.3 and above has no concept of plugin states
-        if (VERSION.SDK_INT >= VERSION_CODES.JELLY_BEAN_MR2) {
-            return;
-        }
-
-        if (enabled) {
-            getSettings().setPluginState(WebSettings.PluginState.ON);
-        } else {
-            getSettings().setPluginState(WebSettings.PluginState.OFF);
-        }
+    private void delayedDestroy() {
+        super.destroy();
     }
 
     /*
@@ -144,8 +144,8 @@ public class BaseWebView extends WebView {
         }
     }
 
+    @Deprecated
     @VisibleForTesting
-    @Deprecated // for testing
     void setIsDestroyed(boolean isDestroyed) {
         mIsDestroyed = isDestroyed;
     }

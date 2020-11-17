@@ -1,16 +1,19 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.nativeads;
 
 import android.content.Context;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import android.text.TextUtils;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.mopub.common.DataKeys;
+import com.mopub.common.ExternalViewabilitySessionManager;
+import com.mopub.common.ViewabilityVendor;
 import com.mopub.common.VisibleForTesting;
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.nativeads.NativeImageHelper.ImageListener;
@@ -98,6 +101,15 @@ public class MoPubCustomEventNative extends CustomEventNative {
         }
 
         try {
+            final Object vendorSet = localExtras.get(DataKeys.VIEWABILITY_VENDORS_KEY);
+            if (vendorSet instanceof Set) {
+                moPubStaticNativeAd.setViewabilityVendors((Set<ViewabilityVendor>)vendorSet);
+            }
+        } catch (Exception ex) {
+            MoPubLog.log(CUSTOM, "Ignore empty viewability vendors list.");
+        }
+
+        try {
             moPubStaticNativeAd.loadAd();
             MoPubLog.log(LOAD_SUCCESS, ADAPTER_NAME);
         } catch (IllegalArgumentException e) {
@@ -132,7 +144,9 @@ public class MoPubCustomEventNative extends CustomEventNative {
             STAR_RATING("starrating", false),
 
             PRIVACY_INFORMATION_ICON_IMAGE_URL("privacyicon", false),
-            PRIVACY_INFORMATION_ICON_CLICKTHROUGH_URL("privacyclkurl", false);
+            PRIVACY_INFORMATION_ICON_CLICKTHROUGH_URL("privacyclkurl", false),
+
+            SPONSORED("sponsored", false);
 
             @NonNull
             final String name;
@@ -180,6 +194,10 @@ public class MoPubCustomEventNative extends CustomEventNative {
         private final ImpressionTracker mImpressionTracker;
         @NonNull
         private final NativeClickHandler mNativeClickHandler;
+        @Nullable
+        private ExternalViewabilitySessionManager viewabilitySessionManager;
+        @NonNull
+        private final Set<ViewabilityVendor> viewabilityVendorsSet;
 
 
         MoPubStaticNativeAd(@NonNull final Context context,
@@ -192,6 +210,7 @@ public class MoPubCustomEventNative extends CustomEventNative {
             mImpressionTracker = impressionTracker;
             mNativeClickHandler = nativeClickHandler;
             mCustomEventNativeListener = customEventNativeListener;
+            viewabilityVendorsSet = new HashSet<>();
         }
 
         void loadAd() throws IllegalArgumentException {
@@ -268,6 +287,8 @@ public class MoPubCustomEventNative extends CustomEventNative {
                     case PRIVACY_INFORMATION_ICON_CLICKTHROUGH_URL:
                         setPrivacyInformationIconClickThroughUrl((String) value);
                         break;
+                    case SPONSORED:
+                        setSponsored((String) value);
                     default:
                         MoPubLog.log(CUSTOM, ADAPTER_NAME, "Unable to add JSON key to internal mapping: " + key.name);
                         break;
@@ -279,6 +300,10 @@ public class MoPubCustomEventNative extends CustomEventNative {
                     throw e;
                 }
             }
+        }
+
+        private void setViewabilityVendors(@NonNull final Set<ViewabilityVendor> viewabilityVendors) {
+            viewabilityVendorsSet.addAll(viewabilityVendors);
         }
 
         private void parseClickTrackers(@NonNull final Object clickTrackers) {
@@ -326,6 +351,13 @@ public class MoPubCustomEventNative extends CustomEventNative {
         public void prepare(@NonNull final View view) {
             mImpressionTracker.addView(view, this);
             mNativeClickHandler.setOnClickListener(view, this);
+            if (viewabilitySessionManager == null) {
+                viewabilitySessionManager = ExternalViewabilitySessionManager.create();
+                viewabilitySessionManager.createNativeSession(view, viewabilityVendorsSet);
+                viewabilitySessionManager.startSession();
+            } else {
+                viewabilitySessionManager.registerTrackedView(view);
+            }
         }
 
         @Override
@@ -337,6 +369,11 @@ public class MoPubCustomEventNative extends CustomEventNative {
         @Override
         public void destroy() {
             mImpressionTracker.destroy();
+            if (viewabilitySessionManager != null) {
+                viewabilitySessionManager.registerTrackedView(new View(mContext));
+                viewabilitySessionManager.endSession();
+                viewabilitySessionManager = null;
+            }
             super.destroy();
         }
 
@@ -344,6 +381,9 @@ public class MoPubCustomEventNative extends CustomEventNative {
         @Override
         public void recordImpression(@NonNull final View view) {
             notifyAdImpressed();
+            if (viewabilitySessionManager != null) {
+                viewabilitySessionManager.trackImpression();
+            }
         }
 
         @Override

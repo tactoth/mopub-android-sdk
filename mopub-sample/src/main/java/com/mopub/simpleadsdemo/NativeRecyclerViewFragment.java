@@ -1,42 +1,39 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.simpleadsdemo;
 
 
-import android.location.Location;
 import android.os.Bundle;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.mopub.nativeads.FacebookAdRenderer;
-import com.mopub.nativeads.FlurryCustomEventNative;
-import com.mopub.nativeads.FlurryNativeAdRenderer;
-import com.mopub.nativeads.FlurryViewBinder;
 import com.mopub.nativeads.GooglePlayServicesAdRenderer;
 import com.mopub.nativeads.MediaViewBinder;
 import com.mopub.nativeads.MoPubNativeAdPositioning;
 import com.mopub.nativeads.MoPubRecyclerAdapter;
 import com.mopub.nativeads.MoPubStaticNativeAdRenderer;
 import com.mopub.nativeads.MoPubVideoNativeAdRenderer;
+import com.mopub.nativeads.PangleAdRenderer;
+import com.mopub.nativeads.PangleAdViewBinder;
 import com.mopub.nativeads.RequestParameters;
 import com.mopub.nativeads.VerizonNativeAdRenderer;
 import com.mopub.nativeads.ViewBinder;
 
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 public class NativeRecyclerViewFragment extends Fragment {
     private MoPubRecyclerAdapter mRecyclerAdapter;
@@ -66,26 +63,7 @@ public class NativeRecyclerViewFragment extends Fragment {
         viewHolder.mLoadButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(final View v) {
-                // If your app already has location access, include it here.
-                final Location location = null;
-                final String keywords = viewHolder.mKeywordsField.getText().toString();
-                final String userDataKeywords = viewHolder.mUserDataKeywordsField.getText().toString();
-
-                // Setting desired assets on your request helps native ad networks and bidders
-                // provide higher-quality ads.
-                final EnumSet<RequestParameters.NativeAdAsset> desiredAssets = EnumSet.of(
-                        RequestParameters.NativeAdAsset.TITLE,
-                        RequestParameters.NativeAdAsset.TEXT,
-                        RequestParameters.NativeAdAsset.ICON_IMAGE,
-                        RequestParameters.NativeAdAsset.MAIN_IMAGE,
-                        RequestParameters.NativeAdAsset.CALL_TO_ACTION_TEXT);
-
-                mRequestParameters = new RequestParameters.Builder()
-                        .location(location)
-                        .keywords(keywords)
-                        .userDataKeywords(userDataKeywords)
-                        .desiredAssets(desiredAssets)
-                        .build();
+                updateRequestParameters(viewHolder);
 
                 if (mRecyclerAdapter != null) {
                     mRecyclerAdapter.refreshAds(mAdConfiguration.getAdUnitId(), mRequestParameters);
@@ -97,6 +75,7 @@ public class NativeRecyclerViewFragment extends Fragment {
         viewHolder.mAdUnitIdView.setText(adUnitId);
         viewHolder.mKeywordsField.setText(getArguments().getString(MoPubListFragment.KEYWORDS_KEY, ""));
         viewHolder.mUserDataKeywordsField.setText(getArguments().getString(MoPubListFragment.USER_DATA_KEYWORDS_KEY, ""));
+        updateRequestParameters(viewHolder);
 
         final RecyclerView.Adapter originalAdapter = new DemoRecyclerAdapter();
 
@@ -111,6 +90,7 @@ public class NativeRecyclerViewFragment extends Fragment {
                         .iconImageId(R.id.native_icon_image)
                         .callToActionId(R.id.native_cta)
                         .privacyInformationIconImageId(R.id.native_privacy_information_icon_image)
+                        .sponsoredTextId(R.id.native_sponsored_text_view)
                         .build()
         );
 
@@ -123,6 +103,7 @@ public class NativeRecyclerViewFragment extends Fragment {
                         .iconImageId(R.id.native_icon_image)
                         .callToActionId(R.id.native_cta)
                         .privacyInformationIconImageId(R.id.native_privacy_information_icon_image)
+                        .sponsoredTextId(R.id.native_sponsored_text_view)
                         .build());
 
         // Set up a renderer for Facebook video ads.
@@ -135,27 +116,6 @@ public class NativeRecyclerViewFragment extends Fragment {
                         .callToActionId(R.id.native_cta)
                         .adChoicesRelativeLayoutId(R.id.native_privacy_information_icon_layout)
                         .build());
-
-        // Set up a renderer for Flurry ads.
-        Map<String, Integer> extraToResourceMap = new HashMap<>(3);
-        extraToResourceMap.put(FlurryCustomEventNative.EXTRA_SEC_BRANDING_LOGO,
-                R.id.flurry_native_brand_logo);
-        extraToResourceMap.put(FlurryCustomEventNative.EXTRA_APP_CATEGORY,
-                R.id.flurry_app_category);
-        extraToResourceMap.put(FlurryCustomEventNative.EXTRA_STAR_RATING_IMG,
-                R.id.flurry_star_rating_image);
-        ViewBinder flurryBinder = new ViewBinder.Builder(R.layout.native_ad_flurry_list_item)
-                .titleId(R.id.flurry_native_title)
-                .textId(R.id.flurry_native_text)
-                .mainImageId(R.id.flurry_native_main_image)
-                .iconImageId(R.id.flurry_native_icon_image)
-                .callToActionId(R.id.flurry_native_cta)
-                .addExtras(extraToResourceMap)
-                .build();
-        FlurryViewBinder flurryViewBinder = new FlurryViewBinder.Builder(flurryBinder)
-                .videoViewId(R.id.flurry_native_video_view)
-                .build();
-        final FlurryNativeAdRenderer flurryRenderer = new FlurryNativeAdRenderer(flurryViewBinder);
 
         // Set up a renderer for AdMob ads.
         final GooglePlayServicesAdRenderer googlePlayServicesAdRenderer = new GooglePlayServicesAdRenderer(
@@ -179,11 +139,21 @@ public class NativeRecyclerViewFragment extends Fragment {
                         .privacyInformationIconImageId(R.id.native_privacy_information_icon_image)
                         .build());
 
+        // Set up a renderer for Pangle ads.
+        final PangleAdRenderer pangleAdRenderer = new PangleAdRenderer(
+                new PangleAdViewBinder.Builder(R.layout.native_ad_pangle_list_item)
+                        .callToActionId(R.id.native_cta)
+                        .decriptionTextId(R.id.native_text)
+                        .iconImageId(R.id.native_icon_image)
+                        .titleId(R.id.native_title)
+                        .mediaViewIdId(R.id.native_main_image)
+                        .build());
+
         // The first renderer that can handle a particular native ad gets used.
         // We are prioritizing network renderers.
+        mRecyclerAdapter.registerAdRenderer(pangleAdRenderer);
         mRecyclerAdapter.registerAdRenderer(verizonNativeAdRenderer);
         mRecyclerAdapter.registerAdRenderer(googlePlayServicesAdRenderer);
-        mRecyclerAdapter.registerAdRenderer(flurryRenderer);
         mRecyclerAdapter.registerAdRenderer(facebookAdRenderer);
         mRecyclerAdapter.registerAdRenderer(moPubStaticNativeAdRenderer);
         mRecyclerAdapter.registerAdRenderer(moPubVideoNativeAdRenderer);
@@ -191,8 +161,29 @@ public class NativeRecyclerViewFragment extends Fragment {
         mRecyclerView.setAdapter(mRecyclerAdapter);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
         mLayoutType = LayoutType.LINEAR;
-        mRecyclerAdapter.loadAds(mAdConfiguration.getAdUnitId());
+        mRecyclerAdapter.loadAds(mAdConfiguration.getAdUnitId(), mRequestParameters);
         return view;
+    }
+
+    private void updateRequestParameters(@NonNull final DetailFragmentViewHolder views) {
+        final String keywords = views.mKeywordsField.getText().toString();
+        final String userDataKeywords = views.mUserDataKeywordsField.getText().toString();
+
+        // Setting desired assets on your request helps native ad networks and bidders
+        // provide higher-quality ads.
+        final EnumSet<RequestParameters.NativeAdAsset> desiredAssets = EnumSet.of(
+                RequestParameters.NativeAdAsset.TITLE,
+                RequestParameters.NativeAdAsset.TEXT,
+                RequestParameters.NativeAdAsset.ICON_IMAGE,
+                RequestParameters.NativeAdAsset.MAIN_IMAGE,
+                RequestParameters.NativeAdAsset.CALL_TO_ACTION_TEXT,
+                RequestParameters.NativeAdAsset.SPONSORED);
+
+        mRequestParameters = new RequestParameters.Builder()
+                .keywords(keywords)
+                .userDataKeywords(userDataKeywords)
+                .desiredAssets(desiredAssets)
+                .build();
     }
 
     void toggleRecyclerLayout() {

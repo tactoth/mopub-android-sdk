@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
@@ -10,7 +10,6 @@ import android.location.Location;
 import android.text.TextUtils;
 import android.view.WindowInsets;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.mopub.common.privacy.ConsentData;
@@ -106,12 +105,15 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
 
     /**
      * Whether or not this ad is using third-party viewability tracking.
-     * 0: Moat disabled, Avid disabled
-     * 1: Moat disabled, Avid enabled
-     * 2: Moat enabled, Avid disabled
-     * 3: Moat enabled, Avid enabled
+     * 0b000: viewability disabled
+     * 0b100: OM SDK enabled
      */
     private static final String VIEWABILITY_KEY = "vv";
+
+    /**
+     * Version of the OM SDK
+     */
+    private static final String OMSDK_VERSION_KEY = "vver";
 
     /**
      * The advanced bidding token for each MoPubAdvancedBidder in JSON format.
@@ -132,12 +134,10 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
     protected String mAdUnitId;
     protected String mKeywords;
     protected String mUserDataKeywords;
-    protected Location mLocation;
     protected Point mRequestedAdSize;
     protected WindowInsets mWindowInsets;
     @Nullable private final PersonalInfoManager mPersonalInfoManager;
     @Nullable private final ConsentData mConsentData;
-    protected Boolean mForceGdprApplies;
 
     public AdUrlGenerator(Context context) {
         mContext = context;
@@ -161,11 +161,6 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
 
     public AdUrlGenerator withUserDataKeywords(String userDataKeywords) {
         mUserDataKeywords = userDataKeywords;
-        return this;
-    }
-
-    public AdUrlGenerator withLocation(Location location) {
-        mLocation = location;
         return this;
     }
 
@@ -198,29 +193,19 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         addParam(USER_DATA_KEYWORDS_KEY, userDataKeywords);
     }
 
-    protected void setLocation(@Nullable Location location) {
+    protected void setLocation() {
         if (!MoPub.canCollectPersonalInformation()) {
             return;
         }
 
-        Location bestLocation = location;
-        Location locationFromLocationService = LocationService.getLastKnownLocation(mContext,
-                MoPub.getLocationPrecision(),
-                MoPub.getLocationAwareness());
+        final Location location = LocationService.getLastKnownLocation(mContext);
 
-        if (locationFromLocationService != null) {
-            bestLocation = locationFromLocationService;
-        }
-
-        if (bestLocation != null) {
-            addParam(LAT_LONG_KEY, bestLocation.getLatitude() + "," + bestLocation.getLongitude());
-            addParam(LAT_LONG_ACCURACY_KEY, String.valueOf((int) bestLocation.getAccuracy()));
+        if (location != null) {
+            addParam(LAT_LONG_KEY, location.getLatitude() + "," + location.getLongitude());
+            addParam(LAT_LONG_ACCURACY_KEY, String.valueOf((int) location.getAccuracy()));
             addParam(LAT_LONG_FRESHNESS_KEY,
-                    String.valueOf(calculateLocationStalenessInMilliseconds(bestLocation)));
-
-            if (bestLocation == locationFromLocationService) {
-                addParam(LAT_LONG_FROM_SDK_KEY, "1");
-            }
+                    String.valueOf(calculateLocationStalenessInMilliseconds(location)));
+            addParam(LAT_LONG_FROM_SDK_KEY, "1");
         }
     }
 
@@ -275,10 +260,11 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         }
     }
 
-    protected void enableViewability(@NonNull final String vendorKey) {
-        Preconditions.checkNotNull(vendorKey);
+    protected void setViewability() {
+        final int omsdk = ViewabilityManager.isViewabilityEnabled() ?  0b100 : 0;
+        addParam(VIEWABILITY_KEY, String.valueOf(omsdk));
 
-        addParam(VIEWABILITY_KEY, vendorKey);
+        addParam(OMSDK_VERSION_KEY, ViewabilityManager.getOmidVersion());
     }
 
     protected void setAdvancedBiddingTokens() {
@@ -334,7 +320,7 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         if (MoPub.canCollectPersonalInformation()) {
             setUserDataKeywords(mUserDataKeywords);
             if (MopubConfig.INCLUDE_LOCATION_IN_REQUEST) {
-                setLocation(mLocation);
+                setLocation();
             }
         }
 
@@ -370,6 +356,8 @@ public abstract class AdUrlGenerator extends BaseUrlGenerator {
         setConsentedVendorListVersion();
 
         addRequestRateParameters();
+
+        setViewability();
     }
 
     private void addParam(String key, MoPubNetworkType value) {

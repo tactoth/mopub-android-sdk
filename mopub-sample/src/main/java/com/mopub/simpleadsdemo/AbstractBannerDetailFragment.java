@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
@@ -236,7 +236,7 @@ public abstract class AbstractBannerDetailFragment extends Fragment implements B
 
     // BannerAdListener
     @Override
-    public void onBannerLoaded(MoPubView banner) {
+    public void onBannerLoaded(@NonNull MoPubView banner) {
         if (mCallbacksAdapter == null) {
             logToast(getActivity(), getName() + " loaded.");
             return;

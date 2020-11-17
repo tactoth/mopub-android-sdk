@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
@@ -11,7 +11,6 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,6 +27,9 @@ import android.widget.RelativeLayout;
 
 import com.mopub.common.logging.MoPubLog;
 import com.mopub.common.util.Dips;
+import androidx.annotation.NonNull;
+
+import com.mopub.common.util.Utils;
 import com.mopub.mobileads.BaseWebView;
 import com.mopub.mobileads.util.WebViews;
 
@@ -107,6 +109,12 @@ public class MoPubBrowser extends Activity {
         } else {
             super.onBackPressed();
         }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        Utils.hideNavigationBar(this);
     }
 
     private void initializeWebView() {
@@ -196,19 +204,6 @@ public class MoPubBrowser extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-
-        int flags = View.SYSTEM_UI_FLAG_LOW_PROFILE
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            flags |= View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-        }
-
-        mWebView.setSystemUiVisibility(flags);
-
         CookieSyncManager.getInstance().startSync();
         mWebView.setWebChromeClient(new WebChromeClient() {
             public void onProgressChanged(WebView webView, int progress) {
@@ -305,11 +300,5 @@ public class MoPubBrowser extends Activity {
     @VisibleForTesting
     void setWebView(WebView webView) {
         mWebView = webView;
-    }
-
-    @Deprecated
-    @VisibleForTesting
-    int getSystemUiVisibility() {
-        return mWebView.getSystemUiVisibility();
     }
 }

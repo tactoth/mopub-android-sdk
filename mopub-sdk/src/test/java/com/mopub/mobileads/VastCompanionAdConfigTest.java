@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
@@ -31,7 +31,7 @@ import static org.robolectric.Shadows.shadowOf;
 @RunWith(SdkTestRunner.class)
 public class VastCompanionAdConfigTest {
 
-    private static final String RESOLVED_CLICKTHROUGH_URL = "https://www.mopub.com/";
+    private static final String RESOLVED_CLICKTHROUGH_URL = "https://www.mopub.com/en";
     private static final String CLICKTHROUGH_URL = "deeplink+://navigate?" +
             "&primaryUrl=bogus%3A%2F%2Furl" +
             "&fallbackUrl=" + Uri.encode(RESOLVED_CLICKTHROUGH_URL);

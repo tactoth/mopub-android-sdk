@@ -1,39 +1,36 @@
-// Copyright 2018-2019 Twitter, Inc.
+// Copyright 2018-2020 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
 // http://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.simpleadsdemo;
 
 import android.app.Activity;
-import android.location.Location;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentStatePagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
 import com.mopub.nativeads.FacebookAdRenderer;
-import com.mopub.nativeads.FlurryCustomEventNative;
-import com.mopub.nativeads.FlurryNativeAdRenderer;
-import com.mopub.nativeads.FlurryViewBinder;
 import com.mopub.nativeads.GooglePlayServicesAdRenderer;
 import com.mopub.nativeads.MediaViewBinder;
 import com.mopub.nativeads.MoPubNativeAdLoadedListener;
 import com.mopub.nativeads.MoPubStaticNativeAdRenderer;
 import com.mopub.nativeads.MoPubStreamAdPlacer;
 import com.mopub.nativeads.MoPubVideoNativeAdRenderer;
+import com.mopub.nativeads.PangleAdRenderer;
+import com.mopub.nativeads.PangleAdViewBinder;
 import com.mopub.nativeads.RequestParameters;
 import com.mopub.nativeads.VerizonNativeAdRenderer;
 import com.mopub.nativeads.ViewBinder;
 
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Map;
 
 import static com.mopub.nativeads.RequestParameters.NativeAdAsset;
 
@@ -54,26 +51,7 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
         views.mLoadButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // If your app already has location access, include it here.
-                final Location location = null;
-                final String keywords = views.mKeywordsField.getText().toString();
-                final String userDataKeywords = views.mUserDataKeywordsField.getText().toString();
-
-                // Setting desired assets on your request helps native ad networks and bidders
-                // provide higher-quality ads.
-                final EnumSet<NativeAdAsset> desiredAssets = EnumSet.of(
-                        NativeAdAsset.TITLE,
-                        NativeAdAsset.TEXT,
-                        NativeAdAsset.ICON_IMAGE,
-                        NativeAdAsset.MAIN_IMAGE,
-                        NativeAdAsset.CALL_TO_ACTION_TEXT);
-
-                mRequestParameters = new RequestParameters.Builder()
-                        .location(location)
-                        .keywords(keywords)
-                        .userDataKeywords(userDataKeywords)
-                        .desiredAssets(desiredAssets)
-                        .build();
+                updateRequestParameters(views);
 
                 if (mStreamAdPlacer != null) {
                     mStreamAdPlacer.loadAds(mAdConfiguration.getAdUnitId(), mRequestParameters);
@@ -87,6 +65,7 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
         views.mKeywordsField.setText(getArguments().getString(MoPubListFragment.KEYWORDS_KEY, ""));
         views.mUserDataKeywordsField.setText(getArguments().getString(MoPubListFragment.USER_DATA_KEYWORDS_KEY, ""));
         mViewPager = (ViewPager) view.findViewById(R.id.gallery_pager);
+        updateRequestParameters(views);
 
         // Set up a renderer for a static native ad.
         final MoPubStaticNativeAdRenderer moPubStaticNativeAdRenderer = new MoPubStaticNativeAdRenderer(
@@ -97,6 +76,7 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
                         .iconImageId(R.id.native_icon_image)
                         .callToActionId(R.id.native_cta)
                         .privacyInformationIconImageId(R.id.native_privacy_information_icon_image)
+                        .sponsoredTextId(R.id.native_sponsored_text_view)
                         .build()
         );
 
@@ -109,6 +89,7 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
                         .iconImageId(R.id.native_icon_image)
                         .callToActionId(R.id.native_cta)
                         .privacyInformationIconImageId(R.id.native_privacy_information_icon_image)
+                        .sponsoredTextId(R.id.native_sponsored_text_view)
                         .build());
 
         // Set up a renderer for Facebook video ads.
@@ -121,27 +102,6 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
                         .callToActionId(R.id.native_cta)
                         .adChoicesRelativeLayoutId(R.id.native_privacy_information_icon_layout)
                         .build());
-
-        // Set up a renderer for Flurry ads.
-        Map<String, Integer> extraToResourceMap = new HashMap<>(3);
-        extraToResourceMap.put(FlurryCustomEventNative.EXTRA_SEC_BRANDING_LOGO,
-                R.id.flurry_native_brand_logo);
-        extraToResourceMap.put(FlurryCustomEventNative.EXTRA_APP_CATEGORY,
-                R.id.flurry_app_category);
-        extraToResourceMap.put(FlurryCustomEventNative.EXTRA_STAR_RATING_IMG,
-                R.id.flurry_star_rating_image);
-        ViewBinder flurryBinder = new ViewBinder.Builder(R.layout.native_ad_flurry_list_item)
-                .titleId(R.id.flurry_native_title)
-                .textId(R.id.flurry_native_text)
-                .mainImageId(R.id.flurry_native_main_image)
-                .iconImageId(R.id.flurry_native_icon_image)
-                .callToActionId(R.id.flurry_native_cta)
-                .addExtras(extraToResourceMap)
-                .build();
-        FlurryViewBinder flurryViewBinder = new FlurryViewBinder.Builder(flurryBinder)
-                .videoViewId(R.id.flurry_native_video_view)
-                .build();
-        final FlurryNativeAdRenderer flurryRenderer = new FlurryNativeAdRenderer(flurryViewBinder);
 
         // Set up a renderer for AdMob ads.
         final GooglePlayServicesAdRenderer googlePlayServicesAdRenderer = new GooglePlayServicesAdRenderer(
@@ -165,14 +125,24 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
                         .privacyInformationIconImageId(R.id.native_privacy_information_icon_image)
                         .build());
 
+        // Set up a renderer for Pangle ads.
+        final PangleAdRenderer pangleAdRenderer = new PangleAdRenderer(
+                new PangleAdViewBinder.Builder(R.layout.native_ad_pangle_list_item)
+                        .callToActionId(R.id.native_cta)
+                        .decriptionTextId(R.id.native_text)
+                        .iconImageId(R.id.native_icon_image)
+                        .titleId(R.id.native_title)
+                        .mediaViewIdId(R.id.native_main_image)
+                        .build());
+
         // This ad placer is used to automatically insert ads into the ViewPager.
         mStreamAdPlacer = new MoPubStreamAdPlacer(getActivity());
 
         // The first renderer that can handle a particular native ad gets used.
         // We are prioritizing network renderers.
+        mStreamAdPlacer.registerAdRenderer(pangleAdRenderer);
         mStreamAdPlacer.registerAdRenderer(verizonNativeAdRenderer);
         mStreamAdPlacer.registerAdRenderer(googlePlayServicesAdRenderer);
-        mStreamAdPlacer.registerAdRenderer(flurryRenderer);
         mStreamAdPlacer.registerAdRenderer(facebookAdRenderer);
         mStreamAdPlacer.registerAdRenderer(moPubStaticNativeAdRenderer);
         mStreamAdPlacer.registerAdRenderer(moPubVideoNativeAdRenderer);
@@ -186,6 +156,27 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
 
     public MoPubStreamAdPlacer getAdPlacer() {
         return mStreamAdPlacer;
+    }
+
+    private void updateRequestParameters(@NonNull final DetailFragmentViewHolder views) {
+        final String keywords = views.mKeywordsField.getText().toString();
+        final String userDataKeywords = views.mUserDataKeywordsField.getText().toString();
+
+        // Setting desired assets on your request helps native ad networks and bidders
+        // provide higher-quality ads.
+        final EnumSet<NativeAdAsset> desiredAssets = EnumSet.of(
+                NativeAdAsset.TITLE,
+                NativeAdAsset.TEXT,
+                NativeAdAsset.ICON_IMAGE,
+                NativeAdAsset.MAIN_IMAGE,
+                NativeAdAsset.CALL_TO_ACTION_TEXT,
+                NativeAdAsset.SPONSORED);
+
+        mRequestParameters = new RequestParameters.Builder()
+                .keywords(keywords)
+                .userDataKeywords(userDataKeywords)
+                .desiredAssets(desiredAssets)
+                .build();
     }
 
     @Override
@@ -226,11 +217,15 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
         }
 
         @Override
-        public int getItemPosition(final Object object) {
+        public int getItemPosition(@NonNull final Object object) {
+            if (object instanceof AdFragment) {
+                return ((AdFragment) object).mAdPosition;
+            }
             // This forces all items to be recreated when invalidate() is called on the ViewPager.
             return POSITION_NONE;
         }
 
+        @NonNull
         @Override
         public Fragment getItem(final int i) {
             mStreamAdPlacer.placeAdsInRange(i - 5, i + 5);
@@ -285,12 +280,14 @@ public class NativeGalleryFragment extends Fragment implements MoPubNativeAdLoad
     public static class AdFragment extends Fragment {
         private static final String ARG_AD_POSITION = "ad_position";
         private MoPubStreamAdPlacer mAdPlacer;
+        private int mAdPosition = -2; // POSITION_NONE
 
         public static AdFragment newInstance(int adPosition) {
             AdFragment fragment = new AdFragment();
             Bundle bundle = new Bundle();
             bundle.putInt(ARG_AD_POSITION, adPosition);
             fragment.setArguments(bundle);
+            fragment.mAdPosition = adPosition;
             return fragment;
         }
 
