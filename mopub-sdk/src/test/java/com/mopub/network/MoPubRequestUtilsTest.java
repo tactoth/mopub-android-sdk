@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.network;
 
@@ -59,10 +59,10 @@ public class MoPubRequestUtilsTest {
     }
 
     @Test
-    public void isMoPubRequest_withHttpMoPubUrl_shouldReturnTrue() {
+    public void isMoPubRequest_withHttpMoPubUrl_shouldReturnFalse() {
         final boolean result = MoPubRequestUtils.isMoPubRequest("http://ads.mopub.com/m/imp");
 
-        assertThat(result).isTrue();
+        assertThat(result).isFalse();
     }
 
     @Test

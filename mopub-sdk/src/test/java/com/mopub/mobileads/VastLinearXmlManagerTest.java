@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.mobileads;
 
@@ -193,7 +193,7 @@ public class VastLinearXmlManagerTest {
                 "    </ClickThrough>" +
                 "    <ClickTracking id=\"DART\">" +
                 "        <![CDATA[" +
-                "        https://ad.doubleclick.net/click%3Bh%3Dv8/3e1b/3/0/%2a/z%3B223626102%3B0-0%3B0%3B47414672%3B255-0/0%3B30477563/30495440/1%3B%3B%7Eaopt%3D0/0/ff/0%3B%7Esscs%3D%3fhttp://s0.2mdn.net/dot.gif" +
+                "        https://ad.doubleclick.net/click%3Bh%3Dv8/3e1b/3/0/%2a/z%3B223626102%3B0-0%3B0%3B47414672%3B255-0/0%3B30477563/30495440/1%3B%3B%7Eaopt%3D0/0/ff/0%3B%7Esscs%3D%3fhttps://s0.2mdn.net/dot.gif" +
                 "        ]]>" +
                 "    </ClickTracking>" +
                 "    <ClickTracking id=\"ThirdParty\">" +
@@ -220,14 +220,14 @@ public class VastLinearXmlManagerTest {
                 "    <Icon program=\"program\" width=\"123\" height=\"234\" xPosition=\"789\" " +
                 "    yPosition=\"101\" apiFramework=\"apiFramework\" offset=\"01:02:03\" " +
                 "    duration=\"01:02:03.456\">" +
-                "        <StaticResource creativeType=\"ImAge/JpEg\">" +
+                "        <StaticResource creativeType=\"ImAge/JpG\">" +
                 "           <![CDATA[staticResource1]]>" +
                 "        </StaticResource>" +
                 "    </Icon>" +
                 "    <Icon program=\"program\" width=\"123\" height=\"234\" xPosition=\"789\" " +
                 "    yPosition=\"101\" apiFramework=\"apiFramework\" offset=\"01:02:03\" " +
                 "    duration=\"01:02:03.456\">" +
-                "        <StaticResource creativeType=\"ImAge/JpEg\">" +
+                "        <StaticResource creativeType=\"ImAge/JpG\">" +
                 "           <![CDATA[staticResource2]]>" +
                 "        </StaticResource>" +
                 "    </Icon>" +
@@ -361,7 +361,7 @@ public class VastLinearXmlManagerTest {
                 .containsOnly("https://ad.doubleclick" +
                                 ".net/click%3Bh%3Dv8/3e1b/3/0/%2a/z%3B223626102%3B0-0%3B0" +
                                 "%3B47414672%3B255-0/0%3B30477563/30495440/1%3B%3B%7Eaopt%3D0/0" +
-                                "/ff/0%3B%7Esscs%3D%3fhttp://s0.2mdn.net/dot.gif",
+                                "/ff/0%3B%7Esscs%3D%3fhttps://s0.2mdn.net/dot.gif",
                         "https://ad.doubleclick.net/clk;212442087;33815766;i?https://www.google" +
                                 ".com/support/richmedia");
     }

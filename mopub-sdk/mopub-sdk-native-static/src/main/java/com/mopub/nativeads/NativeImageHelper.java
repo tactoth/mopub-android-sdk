@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.nativeads;
 
@@ -102,6 +102,11 @@ public class NativeImageHelper {
      */
     public static void loadImageView(@Nullable final String url, @Nullable final ImageView imageView) {
         if (!Preconditions.NoThrow.checkNotNull(imageView, "Cannot load image into null ImageView")) {
+            return;
+        }
+
+        if (!Preconditions.NoThrow.checkNotNull(imageView.getContext(),
+                "Cannot load image into ImageView with null context")) {
             return;
         }
 

@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.network;
 
@@ -67,7 +67,6 @@ import com.mopub.common.util.ResponseHeader;
 import com.mopub.mobileads.MoPubFullscreen;
 import com.mopub.mobileads.MoPubInline;
 import com.mopub.nativeads.MoPubCustomEventNative;
-import com.mopub.nativeads.MoPubCustomEventVideoNative;
 import com.mopub.network.MultiAdResponse.ServerOverrideListener;
 import com.mopub.volley.NetworkResponse;
 
@@ -688,6 +687,8 @@ public class MultiAdResponseTest {
         assertThat(impressionData.getNetworkPlacementId()).isEqualTo(impJson.getString("network_placement_id"));
         assertThat(impressionData.getPublisherRevenue()).isEqualTo(impJson.getDouble("publisher_revenue"));
         assertThat(impressionData.getPrecision()).isEqualTo(impJson.getString("precision"));
+        assertThat(impressionData.getDemandPartnerData())
+                .isEqualsToByComparingFields(impJson.getJSONObject("demand_partner_data"));
     }
 
     @Test
@@ -824,46 +825,6 @@ public class MultiAdResponseTest {
     }
 
     @Test
-    public void parseNetworkResponse_forNatvieVideo_shouldSucceed() throws MoPubNetworkError, JSONException {
-        singleAdResponse.put(ResponseHeader.CONTENT.getKey(), new JSONObject());
-        JSONObject metadata = (JSONObject) singleAdResponse.get(ResponseHeader.METADATA.getKey());
-        metadata.put(ResponseHeader.IMPRESSION_MIN_VISIBLE_PERCENT.getKey(), 33);
-        metadata.put(ResponseHeader.IMPRESSION_VISIBLE_MS.getKey(), 900);
-        metadata.put(ResponseHeader.AD_TYPE.getKey(), AdType.VIDEO_NATIVE);
-        NetworkResponse networkResponse = new NetworkResponse(singleAdResponse.toString().getBytes());
-
-        AdResponse subject = MultiAdResponse.parseSingleAdResponse(activity.getApplicationContext(),
-                networkResponse,
-                singleAdResponse,
-                adUnitId,
-                AdFormat.BANNER,
-                ADUNIT_FORMAT,
-                REQUEST_ID_VALUE);
-
-        assertThat(subject.getAdType()).isEqualTo(AdType.VIDEO_NATIVE);
-        assertThat(subject.getAdGroupId()).isEqualTo(AD_GROUP_ID);
-        assertThat(subject.getAdUnitId()).isEqualTo(adUnitId);
-        assertThat(subject.getClickTrackingUrls().get(0)).isEqualTo(CLICKTRACKING_URL + "1");
-        assertThat(subject.getClickTrackingUrls().get(1)).isEqualTo(CLICKTRACKING_URL + "2");
-        assertThat(subject.getClickTrackingUrls().size()).isEqualTo(2);
-        assertThat(subject.getImpressionTrackingUrls()).isEqualTo(IMPTRACKER_URLS_LIST);
-        assertThat(subject.getBeforeLoadUrls().get(0)).isEqualTo(BEFORE_LOAD_URL + "1");
-        assertThat(subject.getBeforeLoadUrls().get(1)).isEqualTo(BEFORE_LOAD_URL + "2");
-        assertThat(subject.getBeforeLoadUrls().size()).isEqualTo(2);
-        assertThat(subject.getAfterLoadUrls()).isEqualTo(AFTER_LOAD_URLS_LIST);
-        assertThat(subject.getAfterLoadSuccessUrls()).isEqualTo(AFTER_LOAD_SUCCESS_URLS_LIST);
-        assertThat(subject.getAfterLoadFailUrls()).isEqualTo(AFTER_LOAD_FAIL_URLS_LIST);
-        assertThat(subject.getRefreshTimeMillis()).isEqualTo(REFRESH_TIME * 1000);
-        assertThat(subject.getStringBody()).isEqualTo("{}");
-        assertThat(subject.getCustomEventClassName()).isEqualTo(MoPubCustomEventVideoNative.class.getName());
-        final Map<String, String> serverExtras = subject.getServerExtras();
-        assertNotNull(serverExtras);
-        assertThat(serverExtras).isNotEmpty();
-        assertThat(serverExtras.get(DataKeys.IMPRESSION_MIN_VISIBLE_PERCENT)).isEqualTo("33");
-        assertThat(serverExtras.get(DataKeys.IMPRESSION_VISIBLE_MS)).isEqualTo("900");
-    }
-
-    @Test
     public void parseNetworkResponse_forEmptyJsonArray_shouldReturnEmptyLists() throws MoPubNetworkError, JSONException {
         singleAdResponse.put(ResponseHeader.CONTENT.getKey(), new JSONObject());
         JSONObject metadata = (JSONObject) singleAdResponse.get(ResponseHeader.METADATA.getKey());
@@ -894,44 +855,6 @@ public class MultiAdResponseTest {
     }
 
     @Test
-    public void parseNetworkResponse_forNatvieVideo_withAdvancedBidding_shouldSucceed() throws MoPubNetworkError, JSONException {
-        singleAdResponse.put(ResponseHeader.CONTENT.getKey(), new JSONObject());
-        JSONObject metadata = (JSONObject) singleAdResponse.get(ResponseHeader.METADATA.getKey());
-        metadata.put(DataKeys.ADM_KEY, ADM_VALUE);
-        metadata.put(ResponseHeader.AD_TYPE.getKey(), AdType.VIDEO_NATIVE);
-        NetworkResponse networkResponse = new NetworkResponse(singleAdResponse.toString().getBytes());
-
-        AdResponse subject = MultiAdResponse.parseSingleAdResponse(activity.getApplicationContext(),
-                networkResponse,
-                singleAdResponse,
-                adUnitId,
-                AdFormat.BANNER,
-                ADUNIT_FORMAT,
-                REQUEST_ID_VALUE);
-
-        assertThat(subject.getAdType()).isEqualTo(AdType.VIDEO_NATIVE);
-        assertThat(subject.getAdGroupId()).isEqualTo(AD_GROUP_ID);
-        assertThat(subject.getAdUnitId()).isEqualTo(adUnitId);
-        assertThat(subject.getClickTrackingUrls().get(0)).isEqualTo(CLICKTRACKING_URL + "1");
-        assertThat(subject.getClickTrackingUrls().get(1)).isEqualTo(CLICKTRACKING_URL + "2");
-        assertThat(subject.getClickTrackingUrls().size()).isEqualTo(2);
-        assertThat(subject.getImpressionTrackingUrls()).isEqualTo(IMPTRACKER_URLS_LIST);
-        assertThat(subject.getBeforeLoadUrls().get(0)).isEqualTo(BEFORE_LOAD_URL + "1");
-        assertThat(subject.getBeforeLoadUrls().get(1)).isEqualTo(BEFORE_LOAD_URL + "2");
-        assertThat(subject.getBeforeLoadUrls().size()).isEqualTo(2);
-        assertThat(subject.getAfterLoadUrls()).isEqualTo(AFTER_LOAD_URLS_LIST);
-        assertThat(subject.getAfterLoadSuccessUrls()).isEqualTo(AFTER_LOAD_SUCCESS_URLS_LIST);
-        assertThat(subject.getAfterLoadFailUrls()).isEqualTo(AFTER_LOAD_FAIL_URLS_LIST);
-        assertThat(subject.getRefreshTimeMillis()).isEqualTo(REFRESH_TIME * 1000);
-        assertThat(subject.getStringBody()).isEqualTo("{}");
-        assertThat(subject.getCustomEventClassName()).isEqualTo(MoPubCustomEventVideoNative.class.getName());
-        final Map<String, String> serverExtras = subject.getServerExtras();
-        assertNotNull(serverExtras);
-        assertThat(serverExtras).isNotEmpty();
-        assertThat(serverExtras.get(DataKeys.ADM_KEY)).isEqualTo(ADM_VALUE);
-    }
-
-    @Test
     public void parseNetworkResponse_forRewardedVideo_withAdvancedBidding_shouldSucceed() throws MoPubNetworkError, JSONException {
         JSONObject metadata = (JSONObject) singleAdResponse.get(ResponseHeader.METADATA.getKey());
         metadata.put(ResponseHeader.AD_TYPE.getKey(), AdType.REWARDED_VIDEO);
@@ -945,9 +868,8 @@ public class MultiAdResponseTest {
         metadata.put(ResponseHeader.REWARDED_CURRENCIES.getKey(), rewardedCurrenciesJson);
 
         metadata.put(ResponseHeader.REWARDED_VIDEO_COMPLETION_URL.getKey(),
-                "http://completionUrl");
+                "https://completionUrl");
         metadata.put(ResponseHeader.REWARDED_DURATION.getKey(), "15000");
-        metadata.put(ResponseHeader.SHOULD_REWARD_ON_CLICK.getKey(), "1");
 
         NetworkResponse networkResponse = new NetworkResponse(singleAdResponse.toString().getBytes());
 
@@ -978,10 +900,9 @@ public class MultiAdResponseTest {
         assertThat(subject.getStringBody()).isEqualTo("content_text");
         assertThat(subject.getCustomEventClassName()).isEqualTo(MoPubFullscreen.class.getName());
         assertThat(subject.getRewardedCurrencies()).isEqualTo(rewardedCurrenciesJson);
-        assertThat(subject.getRewardedVideoCompletionUrl()).isEqualTo(
-                "http://completionUrl");
+        assertThat(subject.getRewardedAdCompletionUrl()).isEqualTo(
+                "https://completionUrl");
         assertThat(subject.getRewardedDuration()).isEqualTo(15000);
-        assertThat(subject.shouldRewardOnClick()).isTrue();
         final Map<String, String> serverExtras = subject.getServerExtras();
         assertNotNull(serverExtras);
         assertThat(serverExtras).isNotEmpty();
@@ -1437,7 +1358,10 @@ public class MultiAdResponseTest {
                         "          \"network_name\": \"networkname\",\n" +
                         "          \"network_placement_id\": \"networkplacementid\",\n" +
                         "          \"publisher_revenue\": 0.0001,\n" +
-                        "          \"precision\": \"exact\"\n" +
+                        "          \"precision\": \"exact\",\n" +
+                        "          \"demand_partner_data\": {\n" +
+                        "              \"encrypted_cpm\": \"test_cpm\"\n" +
+                        "          }\n" +
                         "     }";
         return new JSONObject(jsonString);
     }

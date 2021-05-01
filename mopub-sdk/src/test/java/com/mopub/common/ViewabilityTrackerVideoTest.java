@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.common;
 
@@ -68,7 +68,7 @@ public class ViewabilityTrackerVideoTest {
     @Test
     public void createVastVideoTracker_withValidParameters_returnsViewabilityTracker() {
         ViewabilityManager.activate(activity);
-        final ViewabilityVendor.Builder builder = new ViewabilityVendor.Builder("http://js.com");
+        final ViewabilityVendor.Builder builder = new ViewabilityVendor.Builder("https://js.com");
 
         final ViewabilityTracker tracker = ViewabilityTrackerVideo.createVastVideoTracker(
                 mockView,

@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.common;
 
@@ -23,8 +23,9 @@ public enum DefaultAdapterClasses {
     UNITY_ADS_ADAPTER_CONFIGURATION("com.mopub.mobileads.UnityAdsAdapterConfiguration"),
     VERIZON_ADAPTER_CONFIGURATION("com.mopub.mobileads.VerizonAdapterConfiguration"),
     VUNGLE_ADAPTER_CONFIGURATION("com.mopub.mobileads.VungleAdapterConfiguration"),
-    PANGLE_ADAPTER_CONFIGURATION("com.mopub.mobileads.PangleAdapterConfiguration");
-;
+    PANGLE_ADAPTER_CONFIGURATION("com.mopub.mobileads.PangleAdapterConfiguration"),
+    SNAP_ADAPTER_CONFIGURATION("com.mopub.mobileads.SnapAdAdapterConfiguration");
+
     private final String mClassName;
 
     DefaultAdapterClasses(@NonNull final String className) {

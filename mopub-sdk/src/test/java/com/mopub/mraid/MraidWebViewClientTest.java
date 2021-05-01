@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.mraid;
 
@@ -24,14 +24,11 @@ public class MraidWebViewClientTest {
 
     @Test
     public void matchesInjectionUrl_withMopubMraidJsUrls_shouldMatch() throws Exception {
-        assertThat(subject.matchesInjectionUrl("http://ads.mopub.com/mraid.js")).isTrue();
         assertThat(subject.matchesInjectionUrl("https://ads.mopub.com/mraid.js")).isTrue();
     }
 
     @Test
     public void matchesInjectionUrl_withOtherMraidJsUrls_shouldMatch() throws Exception {
-        assertThat(subject.matchesInjectionUrl("http://mraid.iab.net/compliance/mraid.js"))
-                .isTrue();
         assertThat(subject.matchesInjectionUrl("https://mraid.iab.net/compliance/mraid.js"))
                 .isTrue();
     }

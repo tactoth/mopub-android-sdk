@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
@@ -15,7 +15,7 @@ repositories {
 }
 
 project.group = 'com.mopub'
-project.version = '5.14.0'
+project.version = '5.16.4'
 
 android {
     compileOptions {
@@ -32,7 +32,7 @@ android {
     lintOptions { abortOnError false }
 
     defaultConfig {
-        versionCode 82
+        versionCode 88
         versionName version
         minSdkVersion 19
         targetSdkVersion 30
@@ -61,11 +61,20 @@ android {
             // connected tests instead.
             returnDefaultValues = true
 
+            def _maxParallelForks = "${System.env.MAX_PARALLEL_FORKS}"
+
             // Test JVM settings since we have a lot of classes loaded.
             all {
                 jvmArgs '-XX:MaxPermSize=4096m', '-Xmx8192m', '-noverify'
                 forkEvery 200
-                maxParallelForks Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+                if (_maxParallelForks
+                        && !_maxParallelForks.allWhitespace
+                        && _maxParallelForks.toString() != "null"
+                        && _maxParallelForks.isInteger()) {
+                    maxParallelForks Integer.parseInt(_maxParallelForks)
+                } else {
+                    maxParallelForks Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+                }
             }
         }
     }

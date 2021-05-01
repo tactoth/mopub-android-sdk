@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.mobileads.resource;
 
@@ -35,13 +35,16 @@ public class DrawableConstants {
         public static final float TEXT_SIZE_SP = 18f;
         public static final float START_ANGLE = -90f;
 
-        public static final int BACKGROUND_COLOR = Color.WHITE;
-        public static final int BACKGROUND_ALPHA = 128;
-        public static final Paint.Style BACKGROUND_STYLE = Paint.Style.STROKE;
+        public static final int BACKGROUND_COLOR = Color.BLACK;
+        public static final Paint.Style BACKGROUND_STYLE = Paint.Style.FILL;
 
-        public static final int PROGRESS_COLOR = Color.WHITE;
-        public static final int PROGRESS_ALPHA = 255;
-        public static final Paint.Style PROGRESS_STYLE = Paint.Style.STROKE;
+        public static final int PROGRESS_CIRCLE_COLOR = Color.WHITE;
+        public static final int PROGRESS_CIRCLE_ALPHA = 128;
+        public static final Paint.Style PROGRESS_CIRCLE_STYLE = Paint.Style.STROKE;
+
+        public static final int PROGRESS_ARC_COLOR = Color.WHITE;
+        public static final int PROGRESS_ARC_ALPHA = 255;
+        public static final Paint.Style PROGRESS_ARC_STYLE = Paint.Style.STROKE;
 
         public static final int TEXT_COLOR = Color.WHITE;
         public static final Paint.Align TEXT_ALIGN = Paint.Align.CENTER;

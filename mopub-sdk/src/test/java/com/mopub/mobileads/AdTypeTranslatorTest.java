@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.mobileads;
 
@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.fest.assertions.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 @RunWith(SdkTestRunner.class)
 public class AdTypeTranslatorTest {
@@ -104,13 +103,6 @@ public class AdTypeTranslatorTest {
     }
 
     @Test
-    public void getBaseAdClassName_withNativeVideoFormat_shouldBeMoPubNativeVideo() {
-        baseAdClassName = AdTypeTranslator.getBaseAdClassName(AdFormat.NATIVE, AdType.VIDEO_NATIVE, null, headers);
-
-        assertThat(baseAdClassName).isEqualTo("com.mopub.nativeads.MoPubCustomEventVideoNative");
-    }
-
-    @Test
     public void getBaseAdClassName_whenInvalidAdTypeAndInvalidFullAdType_shouldReturnNull() {
         baseAdClassName = AdTypeTranslator.getBaseAdClassName(AdFormat.BANNER, "garbage", "garbage",
                 headers);
@@ -118,8 +110,8 @@ public class AdTypeTranslatorTest {
     }
 
     @Test
-    public void getBaseAdClassName_withRewardedVideoFormat_shouldBeMoPubFullscreen() {
-        baseAdClassName = AdTypeTranslator.getBaseAdClassName(AdFormat.REWARDED_VIDEO,
+    public void getBaseAdClassName_withRewardedAdFormat_shouldBeMoPubFullscreen() {
+        baseAdClassName = AdTypeTranslator.getBaseAdClassName(AdFormat.REWARDED_AD,
                 AdType.REWARDED_VIDEO, null, headers);
 
         assertThat(baseAdClassName).isEqualTo("com.mopub.mobileads.MoPubFullscreen");

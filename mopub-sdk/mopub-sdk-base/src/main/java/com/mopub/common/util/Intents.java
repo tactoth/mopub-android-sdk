@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.common.util;
 
@@ -41,7 +41,7 @@ public class Intents {
     static {
         Map<String, String> tempMap = new HashMap<>();
         tempMap.put("market", "https://play.google.com/store/apps/details?%s");
-        tempMap.put("amzn", "http://www.amazon.com/gp/mas/dl/android?%s");
+        tempMap.put("amzn", "https://www.amazon.com/gp/mas/dl/android?%s");
         STORE_SCHEME_TO_URL_MAP = Collections.unmodifiableMap(tempMap);
     }
 
@@ -110,7 +110,7 @@ public class Intents {
         if (!UrlAction.OPEN_NATIVE_BROWSER.shouldTryHandlingUrl(uri)) {
             String supportedSchemes = "mopubnativebrowser://";
             if (getBrowserAgent() == BrowserAgent.NATIVE) {
-                supportedSchemes += ", http://, or https://";
+                supportedSchemes += ", https://";
             }
             throw new UrlParseException("URI does not have " + supportedSchemes + " scheme.");
         }
@@ -259,6 +259,20 @@ public class Intents {
         }
     }
 
+    public static boolean canLaunchApplicationUrl(@NonNull final Context context,
+                                                  @NonNull final Uri uri) {
+        Preconditions.checkNotNull(context);
+        Preconditions.checkNotNull(uri);
+
+        final Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+
+        if (deviceCanHandleIntent(context, intent)) {
+            return true;
+        } else return STORE_SCHEME_TO_URL_MAP.containsKey(intent.getScheme())
+                && intent.getData() != null
+                && !TextUtils.isEmpty(intent.getData().getQuery());
+    }
+
     public static void launchApplicationUrl(@NonNull final Context context,
             @NonNull final Uri uri) throws IntentNotResolvableException {
         final Intent intent = new Intent(Intent.ACTION_VIEW, uri);
@@ -307,8 +321,7 @@ public class Intents {
             } else {
                 final Uri fallbackUri = Uri.parse(fallbackUrl);
                 final String fallbackScheme = fallbackUri.getScheme();
-                if (Constants.HTTP.equalsIgnoreCase(fallbackScheme)
-                        || Constants.HTTPS.equalsIgnoreCase(fallbackScheme)) {
+                if (Constants.HTTPS.equalsIgnoreCase(fallbackScheme)) {
                     showMoPubBrowserForUrl(context, fallbackUri, null);
                 } else {
                     launchApplicationUrl(context, fallbackUri);

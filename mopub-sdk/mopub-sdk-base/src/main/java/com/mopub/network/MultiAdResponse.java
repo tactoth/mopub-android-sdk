@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.network;
 
@@ -348,7 +348,7 @@ public class MultiAdResponse implements Iterator<AdResponse> {
         Integer adTimeoutDelayMilliseconds = extractIntegerHeader(jsonHeaders, ResponseHeader.AD_TIMEOUT);
         builder.setAdTimeoutDelayMilliseconds(adTimeoutDelayMilliseconds);
 
-        if (AdType.STATIC_NATIVE.equals(adTypeString) || AdType.VIDEO_NATIVE.equals(adTypeString)) {
+        if (AdType.STATIC_NATIVE.equals(adTypeString)) {
             try {
                 builder.setJsonBody(new JSONObject(content));
             } catch (JSONException e) {
@@ -413,7 +413,7 @@ public class MultiAdResponse implements Iterator<AdResponse> {
         final boolean allowCustomClose = extractBooleanHeader(jsonHeaders, ResponseHeader.ALLOW_CUSTOM_CLOSE, false);
         builder.setAllowCustomClose(allowCustomClose);
 
-        if (AdType.STATIC_NATIVE.equals(adTypeString) || AdType.VIDEO_NATIVE.equals(adTypeString)) {
+        if (AdType.STATIC_NATIVE.equals(adTypeString)) {
             final String impressionMinVisiblePercent = extractPercentHeaderString(jsonHeaders,
                     ResponseHeader.IMPRESSION_MIN_VISIBLE_PERCENT);
             final String impressionVisibleMS = extractHeader(jsonHeaders,
@@ -430,15 +430,6 @@ public class MultiAdResponse implements Iterator<AdResponse> {
             if (!TextUtils.isEmpty(impressionMinVisiblePx)) {
                 serverExtras.put(DataKeys.IMPRESSION_MIN_VISIBLE_PX, impressionMinVisiblePx);
             }
-        }
-
-        if (AdType.VIDEO_NATIVE.equals(adTypeString)) {
-            serverExtras.put(DataKeys.PLAY_VISIBLE_PERCENT,
-                    extractPercentHeaderString(jsonHeaders, ResponseHeader.PLAY_VISIBLE_PERCENT));
-            serverExtras.put(DataKeys.PAUSE_VISIBLE_PERCENT,
-                    extractPercentHeaderString(jsonHeaders, ResponseHeader.PAUSE_VISIBLE_PERCENT));
-            serverExtras.put(DataKeys.MAX_BUFFER_MS, extractHeader(jsonHeaders,
-                    ResponseHeader.MAX_BUFFER_MS));
         }
 
         // Extract internal video trackers, if available
@@ -485,14 +476,11 @@ public class MultiAdResponse implements Iterator<AdResponse> {
                 ResponseHeader.REWARDED_VIDEO_COMPLETION_URL);
         final Integer rewardedDuration = extractIntegerHeader(jsonHeaders,
                 ResponseHeader.REWARDED_DURATION);
-        final boolean shouldRewardOnClick = extractBooleanHeader(jsonHeaders,
-                ResponseHeader.SHOULD_REWARD_ON_CLICK, false);
-        builder.setRewardedVideoCurrencyName(rewardedVideoCurrencyName);
-        builder.setRewardedVideoCurrencyAmount(rewardedVideoCurrencyAmount);
+        builder.setRewardedAdCurrencyName(rewardedVideoCurrencyName);
+        builder.setRewardedAdCurrencyAmount(rewardedVideoCurrencyAmount);
         builder.setRewardedCurrencies(rewardedCurrencies);
-        builder.setRewardedVideoCompletionUrl(rewardedVideoCompletionUrl);
+        builder.setRewardedAdCompletionUrl(rewardedVideoCompletionUrl);
         builder.setRewardedDuration(rewardedDuration);
-        builder.setShouldRewardOnClick(shouldRewardOnClick);
 
         return builder.build();
     }
@@ -537,6 +525,7 @@ public class MultiAdResponse implements Iterator<AdResponse> {
                                                      @Nullable final String fullAdType) {
         return AdType.MRAID.equals(adType) || AdType.HTML.equals(adType) ||
                 (AdType.INTERSTITIAL.equals(adType) && FullAdType.VAST.equals(fullAdType)) ||
+                (AdType.INTERSTITIAL.equals(adType) && FullAdType.JSON.equals(fullAdType)) ||
                 (AdType.REWARDED_VIDEO.equals(adType) && FullAdType.VAST.equals(fullAdType)) ||
                 AdType.REWARDED_PLAYABLE.equals(adType) ||
                 AdType.FULLSCREEN.equals(adType);

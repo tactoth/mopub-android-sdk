@@ -1,6 +1,6 @@
-// Copyright 2018-2020 Twitter, Inc.
+// Copyright 2018-2021 Twitter, Inc.
 // Licensed under the MoPub SDK License Agreement
-// http://www.mopub.com/legal/sdk-license-agreement/
+// https://www.mopub.com/legal/sdk-license-agreement/
 
 package com.mopub.network;
 
@@ -46,10 +46,9 @@ public class MoPubRequestUtils {
     public static boolean isMoPubRequest(@NonNull final String url) {
         Preconditions.checkNotNull(url);
 
-        final String httpHost = Constants.HTTP + "://" + Constants.HOST;
         final String httpsHost = Constants.HTTPS + "://" + Constants.HOST;
 
-        return url.startsWith(httpHost) || url.startsWith(httpsHost);
+        return url.startsWith(httpsHost);
     }
 
     public static int chooseMethod(String url) {
@@ -66,7 +65,7 @@ public class MoPubRequestUtils {
         Preconditions.checkNotNull(context);
         Preconditions.checkNotNull(url);
 
-        HurlStack.UrlRewriter rewriter = Networking.getUrlRewriter(context);
+        HurlStack.UrlRewriter rewriter = Networking.getUrlRewriter();
         final Uri uri = Uri.parse(rewriter.rewriteUrl(url));
         return getQueryParamMap(uri);
     }
